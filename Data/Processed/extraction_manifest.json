@@ -1,0 +1,228 @@
+{
+  "run": {
+    "run_id": "b1115c24c26b0bc7",
+    "started_utc": "2026-02-03T16:53:48.772493Z",
+    "host": "LAPTOP-SJ6R6D8K",
+    "python": "3.12.3",
+    "os": "Windows 11",
+    "git_commit": "eb8990294a1d5190c28a3d668a1d4aa911705822",
+    "script_path": "Data\\Raw\\RawDataParser.py"
+  },
+  "inputs": {
+    "input_dir": "Data\\Raw\\Inputs",
+    "files": [
+      {
+        "path": "Data\\Raw\\Inputs\\Course Descriptions - University of Tennessee, Chattanooga.pdf",
+        "filename": "Course Descriptions - University of Tennessee, Chattanooga.pdf",
+        "bytes": 438047,
+        "modified_utc": "2026-01-22T18:34:19.315925Z",
+        "sha256": "1904e8a0216b1adc8827ad868575bf3643b9fcb3fdda070b5fc223c0217bd672"
+      },
+      {
+        "path": "Data\\Raw\\Inputs\\Course Descriptions - University of Tennessee, Chattanooga10.pdf",
+        "filename": "Course Descriptions - University of Tennessee, Chattanooga10.pdf",
+        "bytes": 452680,
+        "modified_utc": "2026-02-02T19:03:19.612015Z",
+        "sha256": "5b853020c7cfe3f25e56972b6b7f0245e05c7c0fd8aa83aab5fc5ae83961acb0"
+      },
+      {
+        "path": "Data\\Raw\\Inputs\\Course Descriptions - University of Tennessee, Chattanooga11.pdf",
+        "filename": "Course Descriptions - University of Tennessee, Chattanooga11.pdf",
+        "bytes": 442372,
+        "modified_utc": "2026-02-02T19:03:37.450022Z",
+        "sha256": "e8f6399dc75d176bc2c478ad112c10bb20d06964d873bd01568442bd0c71b1d3"
+      },
+      {
+        "path": "Data\\Raw\\Inputs\\Course Descriptions - University of Tennessee, Chattanooga12.pdf",
+        "filename": "Course Descriptions - University of Tennessee, Chattanooga12.pdf",
+        "bytes": 383242,
+        "modified_utc": "2026-02-02T19:03:52.344970Z",
+        "sha256": "6d97abc96a4822e30d14c279a928ebc334ca9b62272a583d606f473eb2990511"
+      },
+      {
+        "path": "Data\\Raw\\Inputs\\Course Descriptions - University of Tennessee, Chattanooga13.pdf",
+        "filename": "Course Descriptions - University of Tennessee, Chattanooga13.pdf",
+        "bytes": 388972,
+        "modified_utc": "2026-02-02T19:04:10.677840Z",
+        "sha256": "8f3d1d1d7ae835b5a2014aba1dbb1139bb8a9c00703edfb578165f69260148c1"
+      },
+      {
+        "path": "Data\\Raw\\Inputs\\Course Descriptions - University of Tennessee, Chattanooga14.pdf",
+        "filename": "Course Descriptions - University of Tennessee, Chattanooga14.pdf",
+        "bytes": 408841,
+        "modified_utc": "2026-02-02T19:04:27.800620Z",
+        "sha256": "2e3f487a8a8d9c35e06650f76f196c4a10c9d24b2b45f914ddec1b0dfb1ac97a"
+      },
+      {
+        "path": "Data\\Raw\\Inputs\\Course Descriptions - University of Tennessee, Chattanooga15.pdf",
+        "filename": "Course Descriptions - University of Tennessee, Chattanooga15.pdf",
+        "bytes": 457008,
+        "modified_utc": "2026-02-02T19:04:46.929046Z",
+        "sha256": "44ab884227b296fe929f3a685680d2734f44d5e7af3d3b58ab0af438dacd4d91"
+      },
+      {
+        "path": "Data\\Raw\\Inputs\\Course Descriptions - University of Tennessee, Chattanooga16.pdf",
+        "filename": "Course Descriptions - University of Tennessee, Chattanooga16.pdf",
+        "bytes": 499938,
+        "modified_utc": "2026-02-02T19:05:19.337079Z",
+        "sha256": "917bd4483eff8b448d7b71fee6dd484cf8be414690d15a2c0dc023ca0cb3965e"
+      },
+      {
+        "path": "Data\\Raw\\Inputs\\Course Descriptions - University of Tennessee, Chattanooga17.pdf",
+        "filename": "Course Descriptions - University of Tennessee, Chattanooga17.pdf",
+        "bytes": 378738,
+        "modified_utc": "2026-02-02T19:05:34.951631Z",
+        "sha256": "bc9b0a565d3c00cb58c2f069eea5b3d0a885f7b9c2e01e736cb658c7a5f3fb52"
+      },
+      {
+        "path": "Data\\Raw\\Inputs\\Course Descriptions - University of Tennessee, Chattanooga18.pdf",
+        "filename": "Course Descriptions - University of Tennessee, Chattanooga18.pdf",
+        "bytes": 339245,
+        "modified_utc": "2026-02-02T19:05:56.253798Z",
+        "sha256": "f4fea951d6aa0cdc511434c8bfd0a7965573225a85d86509599c19e001550705"
+      },
+      {
+        "path": "Data\\Raw\\Inputs\\Course Descriptions - University of Tennessee, Chattanooga19.pdf",
+        "filename": "Course Descriptions - University of Tennessee, Chattanooga19.pdf",
+        "bytes": 395025,
+        "modified_utc": "2026-02-02T19:06:13.546643Z",
+        "sha256": "ba523151f2181e0965947b947a5027f440a31f309b6aee6ad53dc79b54827db1"
+      },
+      {
+        "path": "Data\\Raw\\Inputs\\Course Descriptions - University of Tennessee, Chattanooga2.pdf",
+        "filename": "Course Descriptions - University of Tennessee, Chattanooga2.pdf",
+        "bytes": 458064,
+        "modified_utc": "2026-02-02T19:00:28.606477Z",
+        "sha256": "1a9919b6ace092e0cba4df6683fcadc9b675b4ee0a46f8e0cbdf6cfbc7b9384c"
+      },
+      {
+        "path": "Data\\Raw\\Inputs\\Course Descriptions - University of Tennessee, Chattanooga20.pdf",
+        "filename": "Course Descriptions - University of Tennessee, Chattanooga20.pdf",
+        "bytes": 600998,
+        "modified_utc": "2026-02-02T19:06:32.050193Z",
+        "sha256": "e7eb0f7cd838b802f32af664d1a10c087099ee8655b5f3f5a07cd73f705e83e9"
+      },
+      {
+        "path": "Data\\Raw\\Inputs\\Course Descriptions - University of Tennessee, Chattanooga21.pdf",
+        "filename": "Course Descriptions - University of Tennessee, Chattanooga21.pdf",
+        "bytes": 472987,
+        "modified_utc": "2026-02-02T19:06:51.380854Z",
+        "sha256": "0b00186c9dbaa6b9962fa51c972efeb7a984da9e3ec2b202581c4ae8e24bf133"
+      },
+      {
+        "path": "Data\\Raw\\Inputs\\Course Descriptions - University of Tennessee, Chattanooga22.pdf",
+        "filename": "Course Descriptions - University of Tennessee, Chattanooga22.pdf",
+        "bytes": 401136,
+        "modified_utc": "2026-02-02T19:07:06.663801Z",
+        "sha256": "0a18e0782dd1d4310320920c1ce076158e45a171f879564e14801e0be633d789"
+      },
+      {
+        "path": "Data\\Raw\\Inputs\\Course Descriptions - University of Tennessee, Chattanooga23.pdf",
+        "filename": "Course Descriptions - University of Tennessee, Chattanooga23.pdf",
+        "bytes": 404520,
+        "modified_utc": "2026-02-02T19:07:18.605179Z",
+        "sha256": "c8b0ca9acafeef88e898f42cdfa9def0125cdd01633e3969ea0f7580538559a8"
+      },
+      {
+        "path": "Data\\Raw\\Inputs\\Course Descriptions - University of Tennessee, Chattanooga24.pdf",
+        "filename": "Course Descriptions - University of Tennessee, Chattanooga24.pdf",
+        "bytes": 484437,
+        "modified_utc": "2026-02-02T19:07:33.790865Z",
+        "sha256": "6a252e403d81b3b33fff45edfe9d044b1b590c6674152f796fef3fd72f5a02b0"
+      },
+      {
+        "path": "Data\\Raw\\Inputs\\Course Descriptions - University of Tennessee, Chattanooga25.pdf",
+        "filename": "Course Descriptions - University of Tennessee, Chattanooga25.pdf",
+        "bytes": 423230,
+        "modified_utc": "2026-02-02T19:07:48.004760Z",
+        "sha256": "d4da52259a0dc0fedd2dcf38a5d75e4efe150f68f439d8827714e6e8730977d3"
+      },
+      {
+        "path": "Data\\Raw\\Inputs\\Course Descriptions - University of Tennessee, Chattanooga26.pdf",
+        "filename": "Course Descriptions - University of Tennessee, Chattanooga26.pdf",
+        "bytes": 115808,
+        "modified_utc": "2026-02-02T19:08:00.678113Z",
+        "sha256": "d1573a64ba3ce01271aea825aaa7b845a07d304c3280e68e6722766b1898a012"
+      },
+      {
+        "path": "Data\\Raw\\Inputs\\Course Descriptions - University of Tennessee, Chattanooga3.pdf",
+        "filename": "Course Descriptions - University of Tennessee, Chattanooga3.pdf",
+        "bytes": 561712,
+        "modified_utc": "2026-02-02T19:00:46.379171Z",
+        "sha256": "da76f84e949fb81a2c85c51b7f2694316aaa274f18f34e79392b8b94c971d22b"
+      },
+      {
+        "path": "Data\\Raw\\Inputs\\Course Descriptions - University of Tennessee, Chattanooga4.pdf",
+        "filename": "Course Descriptions - University of Tennessee, Chattanooga4.pdf",
+        "bytes": 466276,
+        "modified_utc": "2026-02-02T19:01:04.183143Z",
+        "sha256": "b080f16f0bcba2f56c9727352bd2006db0a70dc92ba97cb656165f54abfa9675"
+      },
+      {
+        "path": "Data\\Raw\\Inputs\\Course Descriptions - University of Tennessee, Chattanooga5.pdf",
+        "filename": "Course Descriptions - University of Tennessee, Chattanooga5.pdf",
+        "bytes": 430512,
+        "modified_utc": "2026-02-02T19:01:28.061966Z",
+        "sha256": "e80ed2dfc2d29352b4782bdb5a467be0098ecb0ebda3bd782dcf7675a7718549"
+      },
+      {
+        "path": "Data\\Raw\\Inputs\\Course Descriptions - University of Tennessee, Chattanooga6.pdf",
+        "filename": "Course Descriptions - University of Tennessee, Chattanooga6.pdf",
+        "bytes": 431296,
+        "modified_utc": "2026-02-02T19:01:46.006989Z",
+        "sha256": "97e3a52610c8c076d06fc8dd0f2aff011df89e43d9fbce267f0c9990f2f936c4"
+      },
+      {
+        "path": "Data\\Raw\\Inputs\\Course Descriptions - University of Tennessee, Chattanooga7.pdf",
+        "filename": "Course Descriptions - University of Tennessee, Chattanooga7.pdf",
+        "bytes": 430914,
+        "modified_utc": "2026-02-02T19:02:07.761120Z",
+        "sha256": "3965af96be5e662ae3f1944fdd3928201b076ec0015d1fb43b119bb05a78f451"
+      },
+      {
+        "path": "Data\\Raw\\Inputs\\Course Descriptions - University of Tennessee, Chattanooga8.pdf",
+        "filename": "Course Descriptions - University of Tennessee, Chattanooga8.pdf",
+        "bytes": 447116,
+        "modified_utc": "2026-02-02T19:02:24.000697Z",
+        "sha256": "5be2ab58d43073f6bf68019a0473111b335f94608905bff2125ffe3f4b0cc937"
+      },
+      {
+        "path": "Data\\Raw\\Inputs\\Course Descriptions - University of Tennessee, Chattanooga9.pdf",
+        "filename": "Course Descriptions - University of Tennessee, Chattanooga9.pdf",
+        "bytes": 447938,
+        "modified_utc": "2026-02-02T19:02:56.916485Z",
+        "sha256": "925c02d70ca5f5ca406c9311cf3eeed079245dd449442085bb5cf0814224c98d"
+      }
+    ]
+  },
+  "outputs": {
+    "courses_csv": {
+      "path": "Data\\Processed\\ParsedData.csv",
+      "bytes": 1594503,
+      "modified_utc": "2026-02-03T16:53:48.082023Z",
+      "sha256": "ee5b1aa198c2fdf9e6c28e6116a43e944459e592bfa334b78278f466a5d0da95"
+    },
+    "chunks_csv": {
+      "path": "Data\\Processed\\CitationChunks.csv",
+      "bytes": 1886178,
+      "modified_utc": "2026-02-03T16:53:48.194833Z",
+      "sha256": "105ce7367479ed78018421d6eed8bf34e5ec20e07472e8f46fd0412c4613b9be"
+    },
+    "manifest_json": {
+      "path": "Data\\Processed\\extraction_manifest.json",
+      "bytes": 11257,
+      "modified_utc": "2026-02-03T15:22:22.556898Z",
+      "sha256": "2632a17460c26971cb992e9eb279c8d200540c5b5f0de16fc7c25f55a3e6338d"
+    }
+  },
+  "metrics": {
+    "pdf_count": 26,
+    "courses_rows": 2476,
+    "chunks_rows": 7426
+  },
+  "warnings": [
+    "[Course Descriptions - University of Tennessee, Chattanooga10.pdf] Missing credits line for ESC 1250 near page 2",
+    "[Course Descriptions - University of Tennessee, Chattanooga25.pdf] Missing credits line for UHON 3640R near page 7"
+  ],
+  "errors": []
+}
