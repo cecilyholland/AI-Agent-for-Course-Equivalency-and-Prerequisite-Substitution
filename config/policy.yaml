@@ -1,0 +1,6 @@
+﻿approve_threshold: 80
+bridge_threshold: 65
+
+require_lab_parity: true
+require_credits_known: true
+require_topics_or_outcomes: true
