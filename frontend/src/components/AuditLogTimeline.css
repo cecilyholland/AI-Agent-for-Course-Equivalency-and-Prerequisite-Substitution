@@ -1,0 +1,124 @@
+.audit-log-timeline {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: 24px;
+  box-shadow: var(--shadow);
+}
+
+.audit-log-title {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: var(--color-text);
+  margin-bottom: 20px;
+}
+
+.audit-log-empty {
+  color: var(--color-text-muted);
+  font-style: italic;
+  padding: 12px 0;
+}
+
+.timeline {
+  position: relative;
+  padding-left: 28px;
+}
+
+/* vertical line */
+.timeline::before {
+  content: "";
+  position: absolute;
+  left: 8px;
+  top: 4px;
+  bottom: 4px;
+  width: 2px;
+  background: var(--color-border);
+}
+
+.timeline-entry {
+  position: relative;
+  padding-bottom: 20px;
+}
+
+.timeline-entry:last-child {
+  padding-bottom: 0;
+}
+
+/* dot */
+.timeline-dot {
+  position: absolute;
+  left: -28px;
+  top: 4px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 2px solid var(--color-surface);
+  box-shadow: 0 0 0 2px var(--color-border);
+  background: var(--color-border);
+}
+
+.timeline-dot.actor-student {
+  background: var(--color-actor-student);
+  box-shadow: 0 0 0 2px var(--color-actor-student);
+}
+
+.timeline-dot.actor-agent {
+  background: var(--color-actor-agent);
+  box-shadow: 0 0 0 2px var(--color-actor-agent);
+}
+
+.timeline-dot.actor-reviewer {
+  background: var(--color-actor-reviewer);
+  box-shadow: 0 0 0 2px var(--color-actor-reviewer);
+}
+
+.timeline-content {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.timeline-timestamp {
+  font-size: 0.8rem;
+  color: var(--color-text-muted);
+  white-space: nowrap;
+}
+
+.timeline-actor-badge {
+  display: inline-block;
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.025em;
+  padding: 2px 8px;
+  border-radius: 9999px;
+  color: #ffffff;
+}
+
+.timeline-actor-badge.actor-student {
+  background: var(--color-actor-student);
+}
+
+.timeline-actor-badge.actor-agent {
+  background: var(--color-actor-agent);
+}
+
+.timeline-actor-badge.actor-reviewer {
+  background: var(--color-actor-reviewer);
+  color: var(--color-primary);
+}
+
+.timeline-action {
+  font-weight: 700;
+  font-size: 0.85rem;
+  color: var(--color-text);
+}
+
+.timeline-message {
+  width: 100%;
+  font-size: 0.875rem;
+  color: var(--color-text-secondary);
+  line-height: 1.5;
+  margin-top: 2px;
+}

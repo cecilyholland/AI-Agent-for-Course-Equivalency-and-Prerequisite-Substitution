@@ -1,0 +1,125 @@
+.reviewer-action-panel {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: 24px;
+  box-shadow: var(--shadow);
+}
+
+.reviewer-action-panel h3 {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--color-text);
+  margin-bottom: 16px;
+}
+
+.action-buttons-row {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 20px;
+}
+
+.action-btn {
+  padding: 10px 24px;
+  border: 2px solid transparent;
+  border-radius: var(--radius);
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #ffffff;
+  transition: opacity 0.2s, box-shadow 0.2s, transform 0.1s;
+}
+
+.action-btn:hover:not(:disabled) {
+  opacity: 0.9;
+  box-shadow: var(--shadow-md);
+}
+
+.action-btn:active:not(:disabled) {
+  transform: scale(0.97);
+}
+
+.action-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.action-btn--approve {
+  background-color: var(--color-approve);
+}
+
+.action-btn--deny {
+  background-color: var(--color-deny);
+}
+
+.action-btn--override {
+  background-color: var(--color-primary);
+}
+
+.action-btn--selected {
+  box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.15), var(--shadow-md);
+  transform: scale(1.03);
+}
+
+.comment-section {
+  margin-bottom: 20px;
+}
+
+.comment-section label {
+  display: block;
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: var(--color-text-secondary);
+  margin-bottom: 6px;
+}
+
+.comment-textarea {
+  width: 100%;
+  min-height: 100px;
+  padding: 12px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  font-family: inherit;
+  font-size: 0.95rem;
+  line-height: 1.5;
+  color: var(--color-text);
+  resize: vertical;
+  transition: border-color 0.2s;
+}
+
+.comment-textarea:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(17, 46, 81, 0.12);
+}
+
+.comment-textarea::placeholder {
+  color: var(--color-text-muted);
+}
+
+.confirm-btn {
+  padding: 12px 32px;
+  background-color: var(--color-primary);
+  color: #ffffff;
+  border: none;
+  border-radius: var(--radius);
+  font-size: 1rem;
+  font-weight: 600;
+  transition: background-color 0.2s, box-shadow 0.2s;
+}
+
+.confirm-btn:hover {
+  background-color: var(--color-primary-light);
+  box-shadow: var(--shadow-md);
+}
+
+.confirmation-message {
+  margin-top: 16px;
+  padding: 14px 18px;
+  background-color: #f0fdf4;
+  border: 1px solid var(--color-approve);
+  border-radius: var(--radius);
+  color: #166534;
+  font-weight: 500;
+  font-size: 0.95rem;
+}

@@ -1,0 +1,91 @@
+.decision-explanation {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  padding: 24px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow);
+}
+
+.decision-explanation__section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.decision-explanation__section + .decision-explanation__section {
+  padding-top: 24px;
+  border-top: 1px solid var(--color-border);
+}
+
+.decision-explanation__header {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--color-text);
+  margin: 0;
+}
+
+/* Reasons */
+.decision-explanation__reason {
+  padding: 12px 0;
+}
+
+.decision-explanation__reason + .decision-explanation__reason {
+  border-top: 1px dashed var(--color-border);
+}
+
+.decision-explanation__reason-text {
+  font-size: 0.95rem;
+  color: var(--color-text);
+  line-height: 1.6;
+  margin: 0;
+}
+
+.decision-explanation__reason-citations {
+  margin-top: 8px;
+}
+
+/* Bridge Plan */
+.decision-explanation__bridge-list {
+  padding-left: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.decision-explanation__bridge-list li {
+  font-size: 0.95rem;
+  color: var(--color-text);
+  line-height: 1.5;
+}
+
+/* missing info */
+.decision-explanation__missing-info {
+  background: var(--color-accent-light);
+  border: 1px solid var(--color-accent);
+  border-radius: var(--radius);
+  padding: 16px;
+}
+
+.decision-explanation__missing-info-header {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--color-primary);
+  margin: 0 0 8px 0;
+}
+
+.decision-explanation__missing-info-list {
+  list-style: disc;
+  padding-left: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.decision-explanation__missing-info-list li {
+  font-size: 0.9rem;
+  color: var(--color-text);
+  line-height: 1.5;
+}

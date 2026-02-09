@@ -1,0 +1,45 @@
+.citation-block {
+  margin-top: 8px;
+  padding-left: 16px;
+  border-left: 2px solid var(--color-border);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.citation-block__item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+/* meta row */
+.citation-block__meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.75rem;
+  color: var(--color-text-secondary);
+}
+
+.citation-block__doc-id {
+  font-weight: 600;
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+}
+
+.citation-block__page {
+  font-style: italic;
+  color: var(--color-text-muted);
+}
+
+/* snippet */
+.citation-block__snippet {
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+  font-size: 0.75rem;
+  line-height: 1.6;
+  color: var(--color-text-secondary);
+  background: var(--color-bg);
+  border-radius: var(--radius-sm);
+  padding: 8px 12px;
+  margin: 0;
+}
