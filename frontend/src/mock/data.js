@@ -189,7 +189,7 @@ export const mockCases = [
     student_id: "frc006",
     student_name: "Frank Chen",
     course_requested: "CPSC 4600 - Database Systems",
-    status: "DECIDED",
+    status: "AI_RECOMMENDATION",
     documents: [
       { id: "doc-010", name: "Bootcamp_Certificate.pdf", uploaded_at: "2025-01-19T12:00:00Z" },
       { id: "doc-011", name: "Bootcamp_Curriculum.pdf", uploaded_at: "2025-01-19T12:01:00Z" },
@@ -221,7 +221,7 @@ export const mockCases = [
       { timestamp: "2025-01-19T12:00:00Z", actor: "STUDENT", action: "UPLOAD", message: "Uploaded bootcamp certificate and curriculum for CPSC 4600 equivalency request." },
       { timestamp: "2025-01-19T12:10:00Z", actor: "AGENT", action: "EXTRACT", message: "Extraction complete. Parsed 2 documents." },
       { timestamp: "2025-01-19T12:11:00Z", actor: "AGENT", action: "DECIDE", message: "Decision: DENY with 28% equivalency score (HIGH confidence). Significant gaps in relational theory, normalization, transactions, and query optimization." },
-      { timestamp: "2025-01-19T12:11:01Z", actor: "AGENT", action: "STATUS_CHANGE", message: "Case status changed to DECIDED." },
+      { timestamp: "2025-01-19T12:11:01Z", actor: "AGENT", action: "STATUS_CHANGE", message: "Case status changed to AI_RECOMMENDATION." },
     ],
   },
 ];

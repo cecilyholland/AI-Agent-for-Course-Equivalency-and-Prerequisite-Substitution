@@ -4,7 +4,7 @@ const statusColorMap = {
   UPLOADED: "var(--color-uploaded)",
   EXTRACTING: "var(--color-extracting)",
   READY_FOR_DECISION: "var(--color-ready)",
-  DECIDED: "var(--color-decided)",
+  AI_RECOMMENDATION: "var(--color-decided)",
   NEEDS_INFO: "var(--color-needs-info)",
   REVIEW_PENDING: "var(--color-pending)",
   REVIEWED: "var(--color-reviewed)",
