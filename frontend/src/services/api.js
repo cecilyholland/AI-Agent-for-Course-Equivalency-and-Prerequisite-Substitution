@@ -94,27 +94,33 @@ export function submitAdditionalInfo(caseId, files) {
 
 export function submitReviewerDecision(caseId, action, comment) {
   const now = new Date().toISOString();
+  const isRequestInfo = action === "REQUEST_INFO";
 
   addLogEntry(caseId, {
     timestamp: now,
     actor: "REVIEWER",
     action: action.toUpperCase(),
-    message: comment
-      ? `Reviewer ${action.toLowerCase()}d. Comment: ${comment}`
-      : `Reviewer ${action.toLowerCase()}d.`,
+    message: isRequestInfo
+      ? `Reviewer requested additional information. Comment: ${comment}`
+      : comment
+        ? `Reviewer ${action.toLowerCase()}d. Comment: ${comment}`
+        : `Reviewer ${action.toLowerCase()}d.`,
   });
 
   if (comment) {
     setReviewerComment(caseId, comment);
   }
 
-  updateCaseStatus(caseId, "REVIEWED");
+  const newStatus = isRequestInfo ? "NEEDS_INFO" : "REVIEWED";
+  updateCaseStatus(caseId, newStatus);
 
   addLogEntry(caseId, {
     timestamp: new Date(Date.now() + 1).toISOString(),
     actor: "AGENT",
     action: "STATUS_CHANGE",
-    message: "Case status changed to REVIEWED.",
+    message: isRequestInfo
+      ? "Case status changed to NEEDS_INFO."
+      : "Case status changed to REVIEWED.",
   });
 
   return getCaseById(caseId);

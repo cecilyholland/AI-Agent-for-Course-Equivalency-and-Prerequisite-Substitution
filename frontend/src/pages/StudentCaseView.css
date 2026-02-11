@@ -91,6 +91,31 @@
   margin: 0;
 }
 
+.student-case-view__reviewer-comment {
+  margin-bottom: 16px;
+  padding: 14px 18px;
+  background: #fff;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+}
+
+.student-case-view__reviewer-comment-label {
+  display: block;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--color-primary);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 6px;
+}
+
+.student-case-view__reviewer-comment-text {
+  font-size: 0.95rem;
+  color: var(--color-text);
+  line-height: 1.6;
+  margin: 0;
+}
+
 /* needs-info alert */
 .student-case-view__needs-info-alert {
   background: var(--color-accent-light);
@@ -162,6 +187,17 @@
   background: #fff;
   border: 1px solid var(--color-accent);
   border-radius: var(--radius);
+}
+
+.student-case-view__file-error {
+  padding: 10px 14px;
+  background: #fef2f2;
+  border: 1px solid #dc2626;
+  border-radius: var(--radius);
+  color: #dc2626;
+  font-size: 0.85rem;
+  font-weight: 500;
+  margin-bottom: 10px;
 }
 
 .student-case-view__upload-label {
