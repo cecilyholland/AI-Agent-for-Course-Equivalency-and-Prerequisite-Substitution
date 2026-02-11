@@ -201,7 +201,7 @@ CREATE TABLE review_actions (
 
   reviewer_id         TEXT,
   action             TEXT NOT NULL CHECK (action IN ('approve', 'deny', 'request_info', 'override')),
-  comment            TEXT,
+  comment            TEXT NOT NULL,
 
   -- optional: what decision_run/result this action relates to
   -- if the decision run is deleted, the review action stays, but its link to that run is cleared

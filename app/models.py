@@ -104,8 +104,8 @@ class ReviewAction(Base):
 
     created_at = Column(DateTime(timezone=True), nullable=False, server_default=text("NOW()"))
 
-    reviewer_id = Column(Text)
+    reviewer_id = Column(Text, nullable=False)
     action = Column(Text, nullable=False)
-    comment = Column(Text)
+    comment = Column(Text, nullable=False)
 
     decision_run_id = Column(UUID(as_uuid=True), ForeignKey("decision_runs.decision_run_id", ondelete="SET NULL"))

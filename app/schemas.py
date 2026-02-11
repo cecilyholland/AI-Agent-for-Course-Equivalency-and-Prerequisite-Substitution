@@ -27,8 +27,8 @@ class DocumentOut(BaseModel):
 
 class ReviewIn(BaseModel):
     action: Literal["APPROVE", "DENY", "REQUEST_INFO"]
-    comment: Optional[str] = None
-    reviewerId: Optional[str] = None
+    comment: str
+    reviewerId: str
 
 
 
