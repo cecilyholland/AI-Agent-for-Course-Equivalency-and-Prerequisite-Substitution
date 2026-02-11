@@ -76,7 +76,10 @@ CREATE INDEX idx_extraction_runs_status ON extraction_runs(status);
 
 -- citation_chunks stores the exact pieces of text that support extracted facts
 CREATE TABLE citation_chunks (
-  chunk_id           TEXT PRIMARY KEY, -- keep as TEXT since not sure if we are using UUID ??
+  -- Surrogate primary key (DB identity)
+  chunk_uuid         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  -- Deterministic content-based ID (SHA of doc_id + run_id + span + text)
+  chunk_sha_id       TEXT NOT NULL UNIQUE,
   doc_id             UUID NOT NULL REFERENCES documents(doc_id) ON DELETE CASCADE,
 --   every chunk must belong to one specific extraction run
 -- REFERENCES extraction_runs(extraction_run_id): this creates a link to the extraction_runs table. the extraction must exist in order for a chunk to be created. If an extraction run is deleted, all chunks created by that run are automatically deleted too.
@@ -137,13 +140,13 @@ CREATE TABLE evidence_citations (
   -- Each row points to one extracted fact, where that fact must exist in grounded_evidence
   evidence_id   UUID NOT NULL REFERENCES grounded_evidence(evidence_id) ON DELETE CASCADE,
   -- Each row points to one citation chunk, where that chunk must exist
-  chunk_id      TEXT NOT NULL REFERENCES citation_chunks(chunk_id) ON DELETE CASCADE,
--- this is primary key. You cannot link the same fact to the same chunk twice. Each (evidence_id, chunk_id) pair is unique
-  PRIMARY KEY (evidence_id, chunk_id)
+  chunk_uuid      UUID NOT NULL REFERENCES citation_chunks(chunk_uuid) ON DELETE CASCADE,
+-- this is primary key. You cannot link the same fact to the same chunk twice. Each (evidence_id, chunk_uuid) pair is unique
+  PRIMARY KEY (evidence_id, chunk_uuid)
 );
 
--- indexes to find all evidence items that reference a given chunk
-CREATE INDEX idx_evidence_citations_chunk ON evidence_citations(chunk_id);
+-- Index for reverse lookups
+CREATE INDEX idx_evidence_citations_chunk_uuid ON evidence_citations(chunk_uuid);
 
 
 -- decision_runs tracks each time the decision engine is run for a request. it helps to re-run
