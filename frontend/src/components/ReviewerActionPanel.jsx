@@ -4,7 +4,7 @@ import "./ReviewerActionPanel.css";
 const CONFIRMATION_MESSAGES = {
   APPROVE: "Thanks for sharing, this looks good. Approved.",
   DENY: "Case denied.",
-  OVERRIDE: "Decision overridden by reviewer.",
+  REQUEST_INFO: "Request for additional information sent to the student.",
 };
 
 export default function ReviewerActionPanel({
@@ -15,16 +15,22 @@ export default function ReviewerActionPanel({
   const [selectedAction, setSelectedAction] = useState(null);
   const [comment, setComment] = useState("");
   const [confirmed, setConfirmed] = useState(false);
+  const [commentError, setCommentError] = useState("");
 
   const isDisabled = currentStatus === "REVIEWED" || confirmed;
 
   const handleActionClick = (action) => {
     if (isDisabled) return;
     setSelectedAction(action);
+    setCommentError("");
   };
 
   const handleConfirm = () => {
     if (!selectedAction) return;
+    if (selectedAction === "REQUEST_INFO" && comment.trim() === "") {
+      setCommentError("Comment is required when requesting more info.");
+      return;
+    }
     onAction(selectedAction, comment);
     setConfirmed(true);
   };
@@ -53,28 +59,38 @@ export default function ReviewerActionPanel({
           Deny
         </button>
         <button
-          className={`action-btn action-btn--override${
-            selectedAction === "OVERRIDE" ? " action-btn--selected" : ""
+          className={`action-btn action-btn--request-info${
+            selectedAction === "REQUEST_INFO" ? " action-btn--selected" : ""
           }`}
           disabled={isDisabled}
-          onClick={() => handleActionClick("OVERRIDE")}
+          onClick={() => handleActionClick("REQUEST_INFO")}
         >
-          Override
+          Needs More Info
         </button>
       </div>
 
       <div className="comment-section">
         <label htmlFor={`comment-${caseId}`}>
-          Reviewer Comment (optional)
+          {selectedAction === "REQUEST_INFO"
+            ? "Reviewer Comment (required)"
+            : "Reviewer Comment (optional)"}
         </label>
         <textarea
           id={`comment-${caseId}`}
           className="comment-textarea"
-          placeholder="Add a comment about your decision..."
+          placeholder={
+            selectedAction === "REQUEST_INFO"
+              ? "Describe what additional information is needed..."
+              : "Add a comment about your decision..."
+          }
           value={comment}
-          onChange={(e) => setComment(e.target.value)}
+          onChange={(e) => {
+            setComment(e.target.value);
+            setCommentError("");
+          }}
           disabled={confirmed}
         />
+        {commentError && <p className="comment-error">{commentError}</p>}
       </div>
 
       {selectedAction && !confirmed && (

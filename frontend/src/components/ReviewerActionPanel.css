@@ -52,8 +52,8 @@
   background-color: var(--color-deny);
 }
 
-.action-btn--override {
-  background-color: var(--color-primary);
+.action-btn--request-info {
+  background-color: var(--color-needs-info);
 }
 
 .action-btn--selected {
@@ -111,6 +111,12 @@
 .confirm-btn:hover {
   background-color: var(--color-primary-light);
   box-shadow: var(--shadow-md);
+}
+
+.comment-error {
+  color: #dc2626;
+  font-size: 0.85rem;
+  margin-top: 4px;
 }
 
 .confirmation-message {
