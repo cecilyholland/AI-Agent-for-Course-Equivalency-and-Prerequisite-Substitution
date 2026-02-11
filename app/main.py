@@ -60,7 +60,7 @@ DB_TO_FE_STATUS = {
     "extracting": "EXTRACTING",
     "needs_info": "NEEDS_INFO",
     "ready_for_decision": "READY_FOR_DECISION",
-    "ai_recommendation": "DECIDED",
+    "ai_recommendation": "AI_RECOMMMENDATION",
     "review_pending": "REVIEW_PENDING",
     "reviewed": "REVIEWED",
 }
