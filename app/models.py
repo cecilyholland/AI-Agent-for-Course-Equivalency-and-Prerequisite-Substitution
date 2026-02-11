@@ -1,5 +1,3 @@
-# models.py (Postgres-aligned)
-
 import uuid
 from datetime import datetime
 from sqlalchemy import Column, DateTime, Text, Boolean, ForeignKey, Integer, String
@@ -40,7 +38,6 @@ class Document(Base):
     sha256 = Column(Text, nullable=False)
     storage_uri = Column(Text, nullable=False)
 
-    # add this ONLY if it's in db_schema.sql
     size_bytes = Column(Integer)
 
     is_active = Column(Boolean, nullable=False, server_default=text("TRUE"))

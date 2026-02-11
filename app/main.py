@@ -24,9 +24,7 @@ from models import (
 )
 from schemas import CaseOut, DocumentOut, CaseDetailOut, ReviewIn
 
-# -----------------------------
 # Database setup
-# -----------------------------
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./app.db")
 print("DATABASE_URL =", DATABASE_URL)
 
@@ -56,9 +54,7 @@ def health_db(db: Session = Depends(get_db)):
     db.execute(text("SELECT 1"))
     return {"ok": True}
 
-# -----------------------------
-# Status mapping (DB → Frontend)
-# -----------------------------
+# mapping DB to Frontend)
 DB_TO_FE_STATUS = {
     "uploaded": "UPLOADED",
     "extracting": "EXTRACTING",
@@ -75,9 +71,6 @@ def to_frontend_status(db_status: str) -> str:
     return DB_TO_FE_STATUS.get(db_status, db_status)
 
 
-# -----------------------------
-# Helpers
-# -----------------------------
 def now_utc() -> datetime:
     return datetime.now(timezone.utc)
 
@@ -106,7 +99,7 @@ def save_upload(file: UploadFile) -> Dict[str, Any]:
 
 def case_to_out(r: Request) -> CaseOut:
     return CaseOut(
-        caseId=str(r.request_id),          # ✅ cast UUID → str
+        caseId=str(r.request_id),         
         studentId=r.student_id,
         studentName=r.student_name,
         courseRequested=r.course_requested,
@@ -118,7 +111,7 @@ def case_to_out(r: Request) -> CaseOut:
 
 def doc_to_out(d: Document) -> DocumentOut:
     return DocumentOut(
-        docId=str(d.doc_id),               # ✅ cast UUID → str
+        docId=str(d.doc_id),              
         filename=d.filename,
         sha256=d.sha256,
         storageUri=d.storage_uri,
@@ -154,7 +147,7 @@ def build_decision_packet(db: Session, request_id: str) -> Dict[str, Any]:
 
     evidence = [
         {
-            "evidenceId": str(e.evidence_id),                 # ✅
+            "evidenceId": str(e.evidence_id),                
             "factType": e.fact_type,
             "factKey": e.fact_key,
             "factValue": e.fact_value,
@@ -165,7 +158,7 @@ def build_decision_packet(db: Session, request_id: str) -> Dict[str, Any]:
     ]
 
     return {
-        "extractionRunId": str(latest_run.extraction_run_id), # ✅
+        "extractionRunId": str(latest_run.extraction_run_id), 
         "evidence": evidence,
     }
 
@@ -195,7 +188,7 @@ def build_audit_log(db: Session, request_id: str) -> Dict[str, Any]:
     return {
         "extractionRuns": [
             {
-                "extractionRunId": str(r.extraction_run_id),   # ✅
+                "extractionRunId": str(r.extraction_run_id),   
                 "status": r.status,
                 "createdAt": r.created_at,
                 "startedAt": r.started_at,
@@ -206,7 +199,7 @@ def build_audit_log(db: Session, request_id: str) -> Dict[str, Any]:
         ],
         "decisionRuns": [
             {
-                "decisionRunId": str(r.decision_run_id),       # ✅
+                "decisionRunId": str(r.decision_run_id),       
                 "status": r.status,
                 "createdAt": r.created_at,
                 "startedAt": r.started_at,
@@ -217,7 +210,7 @@ def build_audit_log(db: Session, request_id: str) -> Dict[str, Any]:
         ],
         "reviewActions": [
             {
-                "reviewActionId": str(a.review_action_id),     # ✅
+                "reviewActionId": str(a.review_action_id),     
                 "action": a.action,
                 "comment": a.comment,
                 "reviewerId": a.reviewer_id,
@@ -228,9 +221,7 @@ def build_audit_log(db: Session, request_id: str) -> Dict[str, Any]:
     }
 
 
-# =========================================================
 # FRONTEND ROUTES
-# =========================================================
 
 # GET /api/cases?studentId={studentId}
 # GET /api/cases
@@ -369,7 +360,6 @@ def submit_review(
     if not req:
         raise HTTPException(status_code=404, detail="Case not found")
 
-    # Normalize frontend action -> DB action (matches CHECK constraint)
     action_map = {
         "APPROVE": "approve",
         "DENY": "deny",
