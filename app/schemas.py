@@ -1,8 +1,9 @@
 # schemas.py
 
 from datetime import datetime
-from typing import Optional, List, Dict, Any
+from typing import Optional, List, Dict, Literal, Any
 from pydantic import BaseModel
+
 
 
 class CaseOut(BaseModel):
@@ -25,9 +26,10 @@ class DocumentOut(BaseModel):
 
 
 class ReviewIn(BaseModel):
-    action: str  # APPROVE | DENY | REQUEST_INFO
-    comment: Optional[str]
-    reviewerId: Optional[str]
+    action: Literal["APPROVE", "DENY", "REQUEST_INFO"]
+    comment: Optional[str] = None
+    reviewerId: Optional[str] = None
+
 
 
 class CaseDetailOut(BaseModel):
