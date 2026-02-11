@@ -12,6 +12,7 @@ export default function StudentNewCase() {
   const [previousInstitution, setPreviousInstitution] = useState("");
   const [stagedFiles, setStagedFiles] = useState([]);
   const [submitted, setSubmitted] = useState(false);
+  const [fileError, setFileError] = useState("");
 
   const formatSize = (bytes) => {
     if (bytes < 1024) return bytes + " B";
@@ -19,25 +20,37 @@ export default function StudentNewCase() {
     return (bytes / (1024 * 1024)).toFixed(1) + " MB";
   };
 
+  const validateFiles = (files) => {
+    const valid = [];
+    const invalid = [];
+    Array.from(files).forEach((f) => {
+      if (f.name.toLowerCase().endsWith(".pdf")) {
+        valid.push({ name: f.name, size: formatSize(f.size) });
+      } else {
+        invalid.push(f.name);
+      }
+    });
+    if (invalid.length > 0) {
+      setFileError(`Only PDF files are allowed. Rejected: ${invalid.join(", ")}`);
+    } else {
+      setFileError("");
+    }
+    return valid;
+  };
+
   const handleFileSelect = (e) => {
     const files = e.target.files;
     if (!files) return;
-    const newFiles = Array.from(files).map((f) => ({
-      name: f.name,
-      size: formatSize(f.size),
-    }));
-    setStagedFiles((prev) => [...prev, ...newFiles]);
+    const valid = validateFiles(files);
+    setStagedFiles((prev) => [...prev, ...valid]);
     e.target.value = "";
   };
 
   const handleDrop = (e) => {
     e.preventDefault();
     const files = e.dataTransfer.files;
-    const newFiles = Array.from(files).map((f) => ({
-      name: f.name,
-      size: formatSize(f.size),
-    }));
-    setStagedFiles((prev) => [...prev, ...newFiles]);
+    const valid = validateFiles(files);
+    setStagedFiles((prev) => [...prev, ...valid]);
   };
 
   const removeFile = (index) => {
@@ -168,8 +181,12 @@ export default function StudentNewCase() {
         <h2 className="new-case__section-title">Upload Documents</h2>
         <p className="new-case__section-desc">
           Upload your transcript, course syllabus, and any supporting documents
-          (PDF, DOC, or image files).
+          (PDF files only).
         </p>
+
+        {fileError && (
+          <div className="new-case__file-error">{fileError}</div>
+        )}
 
         <div
           className="new-case__dropzone"
@@ -185,7 +202,7 @@ export default function StudentNewCase() {
               <input
                 type="file"
                 multiple
-                accept=".pdf,.doc,.docx,.png,.jpg,.jpeg"
+                accept=".pdf"
                 onChange={handleFileSelect}
                 hidden
               />
