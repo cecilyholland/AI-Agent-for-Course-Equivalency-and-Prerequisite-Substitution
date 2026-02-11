@@ -4,7 +4,7 @@ import { fetchAllCases } from "../services/api";
 import StatusBadge from "../components/StatusBadge";
 import "./ReviewerDashboard.css";
 
-const PENDING_STATUSES = ["REVIEW_PENDING", "DECIDED"];
+const PENDING_STATUSES = ["REVIEW_PENDING", "AI_RECOMMENDATION"];
 
 export default function ReviewerDashboard() {
   const [activeFilter, setActiveFilter] = useState("ALL");
