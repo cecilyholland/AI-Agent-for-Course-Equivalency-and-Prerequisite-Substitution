@@ -4,6 +4,9 @@ CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 -- use this when student makes a request to upload their documents
 CREATE TABLE requests (
   request_id      UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  student_id      TEXT NOT NULL,
+  student_name    TEXT,
+  course_requested TEXT,
   created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 
@@ -11,12 +14,12 @@ CREATE TABLE requests (
   status          TEXT NOT NULL CHECK (status IN (
                     'uploaded',
                     'extracting',
-                    'evidence_ready',
+                    'ready_for_decision',
                     'needs_info',
-                    'decision_running',
-                    'advisor_review',
-                    'decision'
-                  )),
+                    'ai_recommendation',
+                    'review_pending',
+                    'reviewed'
+                  ))
 );
 
 -- help filter the request based on status
@@ -36,6 +39,7 @@ CREATE TABLE documents (
   content_type    TEXT NOT NULL DEFAULT 'application/pdf',
   sha256          TEXT NOT NULL,   -- store hex string
   storage_uri     TEXT NOT NULL,   -- where the actual file lives (put local path)
+  size_bytes      BIGINT,
 
   -- helpful in multi-upload cycles. If the user uploads a new PDF, old one stays in DB but is marked inactive
   is_active       BOOLEAN NOT NULL DEFAULT TRUE
