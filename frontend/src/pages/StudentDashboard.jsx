@@ -1,3 +1,4 @@
+import { useState, useEffect } from "react";
 import { Link, useParams } from "react-router-dom";
 import { fetchStudentCases } from "../services/api";
 import StatusBadge from "../components/StatusBadge";
@@ -6,7 +7,17 @@ import "./StudentDashboard.css";
 export default function StudentDashboard() {
   const { studentId } = useParams();
 
-  const cases = fetchStudentCases(studentId);
+  const [cases, setCases] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchStudentCases(studentId).then((data) => {
+      setCases(data);
+      setLoading(false);
+    });
+  }, [studentId]);
+
+  if (loading) return <div className="student-dashboard"><p>Loading...</p></div>;
 
   return (
     <div className="student-dashboard">
@@ -46,30 +57,14 @@ export default function StudentDashboard() {
                 <StatusBadge status={c.status} />
               </div>
               <h3 className="student-dashboard__card-course">
-                {c.course_requested}
+                {c.courseRequested}
               </h3>
               <div className="student-dashboard__card-meta">
                 <span>
-                  {c.documents.length} document
-                  {c.documents.length !== 1 && "s"}
-                </span>
-                <span>
                   Submitted{" "}
-                  {new Date(c.documents[0]?.uploaded_at).toLocaleDateString()}
+                  {new Date(c.createdAt).toLocaleDateString()}
                 </span>
               </div>
-              {c.decision_result && (
-                <div className="student-dashboard__card-decision">
-                  <span
-                    className={`student-dashboard__decision-tag student-dashboard__decision-tag--${c.decision_result.decision}`}
-                  >
-                    {c.decision_result.decision.replace(/_/g, " ")}
-                  </span>
-                  <span className="student-dashboard__score">
-                    Score: {c.decision_result.equivalency_score}/100
-                  </span>
-                </div>
-              )}
             </Link>
           ))}
         </div>
