@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
 import { fetchCase, submitReviewerDecision } from "../services/api";
+import { useAuth } from "../services/auth";
 import StatusBadge from "../components/StatusBadge";
 import DecisionSummaryCard from "../components/DecisionSummaryCard";
 import DecisionExplanation from "../components/DecisionExplanation";
@@ -10,11 +11,18 @@ import "./ReviewerCaseReview.css";
 
 export default function ReviewerCaseReview() {
   const { id } = useParams();
-  const [, forceUpdate] = useState(0);
+  const { user } = useAuth();
+  const [caseData, setCaseData] = useState(null);
+  const [loading, setLoading] = useState(true);
 
-  const caseData = fetchCase(id);
+  useEffect(() => {
+    fetchCase(id).then((data) => {
+      setCaseData(data);
+      setLoading(false);
+    });
+  }, [id]);
 
-  if (!caseData) {
+  if (!loading && !caseData) {
     return (
       <div className="case-not-found">
         <p>Case not found.</p>
@@ -23,9 +31,18 @@ export default function ReviewerCaseReview() {
     );
   }
 
-  const handleAction = (action, comment) => {
-    submitReviewerDecision(id, action, comment);
-    forceUpdate((n) => n + 1);
+  if (loading || !caseData) {
+    return (
+      <div className="reviewer-case-review">
+        <p>Loading...</p>
+      </div>
+    );
+  }
+
+  const handleAction = async (action, comment) => {
+    await submitReviewerDecision(id, action, comment, user.utcId);
+    const updated = await fetchCase(id);
+    setCaseData(updated);
   };
 
   const formatDate = (dateStr) => {
@@ -47,11 +64,11 @@ export default function ReviewerCaseReview() {
       <div className="case-header">
         <div className="case-header-title">
           <h1>
-            {caseData.id} &mdash; {caseData.course_requested}
+            {caseData.id} &mdash; {caseData.courseRequested}
           </h1>
           <StatusBadge status={caseData.status} />
         </div>
-        <div className="case-student-name">{caseData.student_name}</div>
+        <div className="case-student-name">{caseData.studentName}</div>
       </div>
 
       <h2 className="section-title">Uploaded Documents</h2>
@@ -60,29 +77,16 @@ export default function ReviewerCaseReview() {
           <li key={doc.id} className="document-item">
             <span className="document-name">{doc.name}</span>
             <span className="document-date">
-              {formatDate(doc.uploaded_at)}
+              {formatDate(doc.uploadedAt)}
             </span>
           </li>
         ))}
       </ul>
 
-      {caseData.decision_result && (
-        <div className="ai-recommendation-panel">
-          <h2 className="section-title">AI Recommendation</h2>
-          <DecisionSummaryCard result={caseData.decision_result} />
-          <DecisionExplanation
-            reasons={caseData.decision_result.reasons}
-            gaps={caseData.decision_result.gaps}
-            bridgePlan={caseData.decision_result.bridge_plan}
-            missingInfoRequests={caseData.decision_result.missing_info_requests}
-          />
-        </div>
-      )}
-
-      {caseData.reviewer_comment && (
+      {caseData.reviewerComment && (
         <div className="existing-comment">
           <div className="existing-comment-label">Previous Reviewer Comment</div>
-          <p>{caseData.reviewer_comment}</p>
+          <p>{caseData.reviewerComment}</p>
         </div>
       )}
 
