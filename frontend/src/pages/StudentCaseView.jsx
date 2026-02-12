@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useParams, Link } from "react-router-dom";
 import { fetchCase, submitAdditionalInfo } from "../services/api";
 import StatusBadge from "../components/StatusBadge";
@@ -6,12 +6,27 @@ import "./StudentCaseView.css";
 
 export default function StudentCaseView() {
   const { studentId, id } = useParams();
+  const [caseData, setCaseData] = useState(null);
+  const [loading, setLoading] = useState(true);
   const [showUploadForm, setShowUploadForm] = useState(false);
   const [uploadedExtra, setUploadedExtra] = useState(false);
   const [fileError, setFileError] = useState("");
-  const [, forceUpdate] = useState(0);
+  const fileInputRef = useRef(null);
 
-  const caseData = fetchCase(id);
+  useEffect(() => {
+    fetchCase(id).then((data) => {
+      setCaseData(data);
+      setLoading(false);
+    });
+  }, [id]);
+
+  if (loading) {
+    return (
+      <div className="student-case-view">
+        <p>Loading...</p>
+      </div>
+    );
+  }
 
   if (!caseData) {
     return (
@@ -34,11 +49,11 @@ export default function StudentCaseView() {
       <div className="student-case-view__header">
         <div className="student-case-view__title-row">
           <h1 className="student-case-view__title">
-            {caseData.id} &mdash; {caseData.course_requested}
+            {caseData.id} &mdash; {caseData.courseRequested}
           </h1>
           <StatusBadge status={caseData.status} />
         </div>
-        <p className="student-case-view__student-name">{caseData.student_name}</p>
+        <p className="student-case-view__student-name">{caseData.studentName}</p>
       </div>
 
       <div className="student-case-view__documents">
@@ -48,7 +63,7 @@ export default function StudentCaseView() {
             <li className="student-case-view__doc-item" key={doc.id}>
               <span className="student-case-view__doc-name">{doc.name}</span>
               <span className="student-case-view__doc-date">
-                {new Date(doc.uploaded_at).toLocaleDateString()}
+                {new Date(doc.uploadedAt).toLocaleDateString()}
               </span>
             </li>
           ))}
@@ -61,10 +76,10 @@ export default function StudentCaseView() {
             Additional Information Required
           </h3>
 
-          {caseData.reviewer_comment && (
+          {caseData.reviewerComment && (
             <div className="student-case-view__reviewer-comment">
               <span className="student-case-view__reviewer-comment-label">Reviewer Comment</span>
-              <p className="student-case-view__reviewer-comment-text">{caseData.reviewer_comment}</p>
+              <p className="student-case-view__reviewer-comment-text">{caseData.reviewerComment}</p>
             </div>
           )}
 
@@ -84,6 +99,7 @@ export default function StudentCaseView() {
                 <div className="student-case-view__file-error">{fileError}</div>
               )}
               <input
+                ref={fileInputRef}
                 type="file"
                 multiple
                 accept=".pdf"
@@ -106,9 +122,14 @@ export default function StudentCaseView() {
                 <button
                   className="student-case-view__upload-submit"
                   onClick={() => {
-                    submitAdditionalInfo(id, [{ name: "Additional_Document.pdf" }]);
-                    setUploadedExtra(true);
-                    forceUpdate((n) => n + 1);
+                    const files = Array.from(fileInputRef.current.files);
+                    if (files.length === 0) return;
+                    submitAdditionalInfo(id, files).then(() => {
+                      return fetchCase(id);
+                    }).then((updated) => {
+                      setCaseData(updated);
+                      setUploadedExtra(true);
+                    });
                   }}
                 >
                   Upload & Submit
