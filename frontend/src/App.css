@@ -1,0 +1,95 @@
+.app-nav {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 24px;
+  height: 56px;
+  background: var(--color-primary);
+  border-bottom: 2px solid var(--color-accent);
+  box-shadow: 0 2px 8px rgba(17, 46, 81, 0.25);
+}
+
+.app-nav-brand {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--color-accent);
+  text-decoration: none;
+}
+
+.app-nav-brand:hover {
+  text-decoration: none;
+  color: #fff;
+}
+
+.app-nav-links {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 20px;
+}
+
+.app-nav-links a {
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.75);
+  text-decoration: none;
+  padding: 4px 0;
+  transition: color 0.15s;
+}
+
+.app-nav-links a:hover {
+  color: #ffffff;
+  text-decoration: none;
+}
+
+.app-nav-user {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--color-primary);
+  background: var(--color-accent);
+  padding: 4px 10px;
+  border-radius: 9999px;
+}
+
+.app-nav-logout {
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.75);
+  background: none;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: var(--radius-sm);
+  padding: 4px 12px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.app-nav-logout:hover {
+  color: var(--color-accent);
+  border-color: var(--color-accent);
+}
+
+.app-main {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 32px 24px 64px;
+}
+
+.app-not-found {
+  text-align: center;
+  padding: 80px 16px;
+}
+
+.app-not-found h1 {
+  font-size: 2rem;
+  font-weight: 700;
+  color: var(--color-primary);
+  margin-bottom: 12px;
+}
+
+.app-not-found p {
+  font-size: 1rem;
+  color: var(--color-text-secondary);
+}
