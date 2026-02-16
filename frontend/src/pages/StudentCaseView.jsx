@@ -2,15 +2,13 @@ import { useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { fetchCase, submitAdditionalInfo } from "../services/api";
 import StatusBadge from "../components/StatusBadge";
-import DecisionSummaryCard from "../components/DecisionSummaryCard";
-import DecisionExplanation from "../components/DecisionExplanation";
-import AuditLogTimeline from "../components/AuditLogTimeline";
 import "./StudentCaseView.css";
 
 export default function StudentCaseView() {
   const { studentId, id } = useParams();
   const [showUploadForm, setShowUploadForm] = useState(false);
   const [uploadedExtra, setUploadedExtra] = useState(false);
+  const [fileError, setFileError] = useState("");
   const [, forceUpdate] = useState(0);
 
   const caseData = fetchCase(id);
@@ -26,12 +24,6 @@ export default function StudentCaseView() {
       </div>
     );
   }
-
-  const { decision_result } = caseData;
-  const showNeedsInfoAlert =
-    caseData.status === "NEEDS_INFO" &&
-    decision_result?.missing_info_requests &&
-    decision_result.missing_info_requests.length > 0;
 
   return (
     <div className="student-case-view">
@@ -63,47 +55,52 @@ export default function StudentCaseView() {
         </ul>
       </div>
 
-      {decision_result && (
-        <div className="student-case-view__recommendation">
-          <h2 className="student-case-view__section-title">AI Recommendation</h2>
-          <DecisionSummaryCard result={decision_result} />
-          <DecisionExplanation
-            reasons={decision_result.reasons}
-            gaps={decision_result.gaps}
-            bridgePlan={decision_result.bridge_plan}
-            missingInfoRequests={decision_result.missing_info_requests}
-          />
-        </div>
-      )}
-
-      {showNeedsInfoAlert && !uploadedExtra && (
+      {caseData.status === "NEEDS_INFO" && !uploadedExtra && (
         <div className="student-case-view__needs-info-alert">
           <h3 className="student-case-view__needs-info-title">
             Additional Information Required
           </h3>
-          <ul className="student-case-view__needs-info-list">
-            {decision_result.missing_info_requests.map((item, index) => (
-              <li key={index}>{item}</li>
-            ))}
-          </ul>
+
+          {caseData.reviewer_comment && (
+            <div className="student-case-view__reviewer-comment">
+              <span className="student-case-view__reviewer-comment-label">Reviewer Comment</span>
+              <p className="student-case-view__reviewer-comment-text">{caseData.reviewer_comment}</p>
+            </div>
+          )}
 
           {!showUploadForm ? (
             <button
               className="student-case-view__needs-info-btn"
               onClick={() => setShowUploadForm(true)}
             >
-              Submit Additional Info
+              Upload Additional Documents
             </button>
           ) : (
             <div className="student-case-view__upload-form">
               <label className="student-case-view__upload-label">
                 Select files to upload:
               </label>
+              {fileError && (
+                <div className="student-case-view__file-error">{fileError}</div>
+              )}
               <input
                 type="file"
                 multiple
-                accept=".pdf,.doc,.docx,.png,.jpg,.jpeg"
+                accept=".pdf"
                 className="student-case-view__upload-input"
+                onChange={(e) => {
+                  const files = e.target.files;
+                  if (!files) return;
+                  const invalid = Array.from(files).filter(
+                    (f) => !f.name.toLowerCase().endsWith(".pdf")
+                  );
+                  if (invalid.length > 0) {
+                    setFileError(`Only PDF files are allowed. Rejected: ${invalid.map((f) => f.name).join(", ")}`);
+                    e.target.value = "";
+                  } else {
+                    setFileError("");
+                  }
+                }}
               />
               <div className="student-case-view__upload-actions">
                 <button
@@ -114,7 +111,7 @@ export default function StudentCaseView() {
                     forceUpdate((n) => n + 1);
                   }}
                 >
-                  Upload &amp; Submit
+                  Upload & Submit
                 </button>
                 <button
                   className="student-case-view__upload-cancel"
@@ -130,14 +127,10 @@ export default function StudentCaseView() {
 
       {uploadedExtra && (
         <div className="student-case-view__upload-success">
-          Additional documents submitted. The AI agent will re-evaluate your
-          case shortly.
+          Additional documents submitted successfully.
         </div>
       )}
 
-      <div className="student-case-view__audit-log">
-        <AuditLogTimeline logs={caseData.logs} />
-      </div>
     </div>
   );
 }
