@@ -63,7 +63,7 @@ def norm(s: str) -> str:
     return re.sub(r"\s+", " ", s).strip()
 
 
-def sha_id(*parts: str, length: int = 16) -> str:
+def sha_id(*parts: str, length: int = 32) -> str:
     """Stable short ID for chunks/records."""
     h = hashlib.sha256("||".join(parts).encode("utf-8")).hexdigest()
     return h[:length]
@@ -317,9 +317,9 @@ def parse_pdf(pdf_path: str, warnings: List[str]) -> Tuple[List[ParsedCourse], L
         # -------------------------
         # Citation chunks
         # -------------------------
-        header_chunk_id = sha_id(source_doc, str(header_page), course_code, "header", header)
+        header_chunk_sha_id = sha_id(source_doc, str(header_page), course_code, "header", header)
         chunks.append(CitationChunk({
-            "chunk_id": header_chunk_id,
+            "chunk_sha_id": header_chunk_sha_id,
             "course_code": course_code,
             "source_doc": source_doc,
             "page": header_page,
@@ -327,11 +327,11 @@ def parse_pdf(pdf_path: str, warnings: List[str]) -> Tuple[List[ParsedCourse], L
             "chunk_text": header
         }))
 
-        credit_chunk_id = ""
+        credit_chunk_sha_id = ""
         if credit_line:
-            credit_chunk_id = sha_id(source_doc, str(credit_page), course_code, "credits", credit_line)
+            credit_chunk_sha_id = sha_id(source_doc, str(credit_page), course_code, "credits", credit_line)
             chunks.append(CitationChunk({
-                "chunk_id": credit_chunk_id,
+                "chunk_sha_id": credit_chunk_sha_id,
                 "course_code": course_code,
                 "source_doc": source_doc,
                 "page": credit_page,
@@ -340,9 +340,9 @@ def parse_pdf(pdf_path: str, warnings: List[str]) -> Tuple[List[ParsedCourse], L
             }))
 
         # Store description as one chunk (simple + reliable); can be split later if needed.
-        desc_chunk_id = sha_id(source_doc, ",".join(map(str, desc_pages)), course_code, "description", desc_text[:200])
+        desc_chunk_sha_id = sha_id(source_doc, ",".join(map(str, desc_pages)), course_code, "description", desc_text[:200])
         chunks.append(CitationChunk({
-            "chunk_id": desc_chunk_id,
+            "chunk_sha_id": desc_chunk_sha_id,
             "course_code": course_code,
             "source_doc": source_doc,
             "page": desc_pages[0],
@@ -350,10 +350,10 @@ def parse_pdf(pdf_path: str, warnings: List[str]) -> Tuple[List[ParsedCourse], L
             "chunk_text": desc_text
         }))
 
-        chunk_ids = [header_chunk_id]
-        if credit_chunk_id:
-            chunk_ids.append(credit_chunk_id)
-        chunk_ids.append(desc_chunk_id)
+        chunk_sha_ids = [header_chunk_sha_id]
+        if credit_chunk_sha_id:
+            chunk_sha_ids.append(credit_chunk_sha_id)
+        chunk_sha_ids.append(desc_chunk_sha_id)
 
         # -------------------------
         # Parsed course row
@@ -376,7 +376,7 @@ def parse_pdf(pdf_path: str, warnings: List[str]) -> Tuple[List[ParsedCourse], L
             "description": desc_text,
             "source_doc": source_doc,
             "source_pages": ",".join(map(str, sorted(set([header_page] + desc_pages)))),
-            "chunk_ids": "|".join(chunk_ids),
+            "chunk_sha_ids": "|".join(chunk_sha_ids),
         }))
 
     return courses, chunks
