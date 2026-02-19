@@ -1,11 +1,11 @@
 {
   "run": {
-    "run_id": "b1115c24c26b0bc7",
-    "started_utc": "2026-02-03T16:53:48.772493Z",
+    "run_id": "83853a55356d085f",
+    "started_utc": "2026-02-19T19:03:23.579778Z",
     "host": "LAPTOP-SJ6R6D8K",
     "python": "3.12.3",
     "os": "Windows 11",
-    "git_commit": "eb8990294a1d5190c28a3d668a1d4aa911705822",
+    "git_commit": "bd9e12dffc526184e8e30f100db6a42be9e28539",
     "script_path": "Data\\Raw\\RawDataParser.py"
   },
   "inputs": {
@@ -198,21 +198,21 @@
   "outputs": {
     "courses_csv": {
       "path": "Data\\Processed\\ParsedData.csv",
-      "bytes": 1594503,
-      "modified_utc": "2026-02-03T16:53:48.082023Z",
-      "sha256": "ee5b1aa198c2fdf9e6c28e6116a43e944459e592bfa334b78278f466a5d0da95"
+      "bytes": 1713323,
+      "modified_utc": "2026-02-19T19:03:23.409390Z",
+      "sha256": "a39c63e80d32c3cf63d535ded7108ddc705f8d9138128687db561929408cb9a1"
     },
     "chunks_csv": {
       "path": "Data\\Processed\\CitationChunks.csv",
-      "bytes": 1886178,
-      "modified_utc": "2026-02-03T16:53:48.194833Z",
-      "sha256": "105ce7367479ed78018421d6eed8bf34e5ec20e07472e8f46fd0412c4613b9be"
+      "bytes": 2004998,
+      "modified_utc": "2026-02-19T19:03:23.437726Z",
+      "sha256": "767d996b5525c1899e5cf7ffa823e0e501b7bedf5e64b9e9bb3b8622295ae63c"
     },
     "manifest_json": {
       "path": "Data\\Processed\\extraction_manifest.json",
-      "bytes": 11257,
-      "modified_utc": "2026-02-03T15:22:22.556898Z",
-      "sha256": "2632a17460c26971cb992e9eb279c8d200540c5b5f0de16fc7c25f55a3e6338d"
+      "bytes": 11386,
+      "modified_utc": "2026-02-03T17:16:01.994376Z",
+      "sha256": "831527eeb20751dc75d37085a20ce385155b0ffc4a8fe9ff3321a0a58e705920"
     }
   },
   "metrics": {
