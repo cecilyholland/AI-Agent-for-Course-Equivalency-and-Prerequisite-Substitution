@@ -8,9 +8,11 @@ import uuid
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
-from fastapi import FastAPI, Depends, UploadFile, File, Form, HTTPException, Query
+from fastapi import FastAPI, Depends, UploadFile, File, Form, HTTPException, Query, HTTPException, Depends
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker, Session
+from models import Request, ExtractionRun, GroundedEvidence
+from schemas import ExtractionCompleteIn
 
 
 from models import (
@@ -22,10 +24,10 @@ from models import (
     ReviewAction,
     GroundedEvidence,
 )
-from schemas import CaseOut, DocumentOut, CaseDetailOut, ReviewIn
+from schemas import CaseOut, DocumentOut, CaseDetailOut, ReviewIn, ExtractionCompleteIn, ExtractionStartOut, ExtractionStartDocOut
 
 # Database setup
-DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./app.db")
+DATABASE_URL = os.environ["DATABASE_URL"]  # raises KeyError if missing
 print("DATABASE_URL =", DATABASE_URL)
 
 engine = create_engine(
@@ -33,8 +35,6 @@ engine = create_engine(
     connect_args={"check_same_thread": False} if DATABASE_URL.startswith("sqlite") else {},
 )
 SessionLocal = sessionmaker(bind=engine, autocommit=False, autoflush=False)
-
-Base.metadata.create_all(bind=engine)
 
 UPLOAD_DIR = os.getenv("UPLOAD_DIR", "./uploads")
 os.makedirs(UPLOAD_DIR, exist_ok=True)
@@ -391,3 +391,111 @@ def submit_review(
     db.commit()
     db.refresh(req)
     return case_to_out(req)
+
+@app.post("/api/cases/{caseId}/extraction/start", response_model=ExtractionStartOut)
+def start_extraction(caseId: str, db: Session = Depends(get_db)):
+    req = db.query(Request).filter(Request.request_id == caseId).first()
+    if not req:
+        raise HTTPException(status_code=404, detail="Case not found")
+
+    # Claim the most recent queued run for this case
+    run = (
+        db.query(ExtractionRun)
+        .filter(ExtractionRun.request_id == caseId, ExtractionRun.status == "queued")
+        .order_by(ExtractionRun.created_at.desc())
+        .first()
+    )
+    if not run:
+        raise HTTPException(status_code=409, detail="No queued extraction run for this case")
+
+    # Fetch active documents to send to extraction service
+    docs = (
+        db.query(Document)
+        .filter(Document.request_id == caseId, Document.is_active == True)
+        .order_by(Document.created_at.asc())
+        .all()
+    )
+    if not docs:
+        raise HTTPException(status_code=409, detail="No active documents to extract")
+
+    run.status = "running"
+    run.started_at = now_utc()
+
+    req.status = "extracting"
+    req.updated_at = now_utc()
+
+    db.commit()
+
+    return ExtractionStartOut(
+        extractionRunId=str(run.extraction_run_id),
+        caseId=caseId,
+        status="running",
+        documents=[
+            ExtractionStartDocOut(
+                docId=str(d.doc_id),
+                filename=d.filename,
+                sha256=d.sha256,
+                storageUri=d.storage_uri,
+            )
+            for d in docs
+        ],
+    )
+
+
+@app.post("/api/cases/{caseId}/extraction/complete")
+def complete_extraction(caseId: str, body: ExtractionCompleteIn, db: Session = Depends(get_db)):
+    # validating case exists
+    req = db.query(Request).filter(Request.request_id == caseId).first()
+    if not req:
+        raise HTTPException(status_code=404, detail="Case not found")
+
+    # validating extraction run exists and belongs to this case
+    run = (
+        db.query(ExtractionRun)
+        .filter(
+            ExtractionRun.extraction_run_id == body.extractionRunId,
+            ExtractionRun.request_id == caseId,
+        )
+        .first()
+    )
+    if not run:
+        raise HTTPException(status_code=404, detail="Extraction run not found")
+
+    # validating state transition
+    if run.status not in ("running", "queued"):
+        raise HTTPException(status_code=409, detail=f"Run is not active (status={run.status})")
+
+    run.status = "completed"
+
+    # If someone called /complete without /start, still set started_at for audit consistency
+    if run.started_at is None:
+        run.started_at = now_utc()
+
+    run.finished_at = now_utc()
+
+    # insert the structured evidence
+    for fact in body.facts:
+        db.add(
+            GroundedEvidence(
+                request_id=caseId,
+                extraction_run_id=run.extraction_run_id,  
+                fact_type=fact.factType,
+                fact_key=fact.factKey,
+                fact_value=fact.factValue,
+                fact_json=fact.factJson,
+                unknown=fact.unknown,
+                created_at=now_utc(),
+            )
+        )
+
+    # moving forward in workflow
+    req.status = "ready_for_decision"
+    req.updated_at = now_utc()
+
+    db.commit()
+
+    return {
+        "message": "Extraction completed",
+        "extractionRunId": str(run.extraction_run_id),
+        "factsInserted": len(body.facts),
+    }

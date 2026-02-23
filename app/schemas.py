@@ -5,7 +5,6 @@ from typing import Optional, List, Dict, Literal, Any
 from pydantic import BaseModel
 
 
-
 class CaseOut(BaseModel):
     caseId: str
     studentId: str
@@ -37,3 +36,26 @@ class CaseDetailOut(BaseModel):
     documents: List[DocumentOut]
     decisionPacket: Dict[str, Any]
     auditLog: Dict[str, Any]
+
+class ExtractionStartDocOut(BaseModel):
+    docId: str
+    filename: str
+    sha256: str
+    storageUri: str
+
+class ExtractionStartOut(BaseModel):
+    extractionRunId: str
+    caseId: str
+    status: str
+    documents: List[ExtractionStartDocOut]
+
+class ExtractionFactIn(BaseModel):
+    factType: str
+    factKey: Optional[str] = None
+    factValue: Optional[str] = None
+    factJson: Optional[Dict[str, Any]] = None
+    unknown: bool = False
+
+class ExtractionCompleteIn(BaseModel):
+    extractionRunId: str
+    facts: List[ExtractionFactIn]
