@@ -8,12 +8,17 @@ import uuid
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
-from fastapi import FastAPI, Depends, UploadFile, File, Form, HTTPException, Query, HTTPException, Depends
+from fastapi import (
+    FastAPI,
+    Depends,
+    UploadFile,
+    File,
+    Form,
+    HTTPException,
+    Query,
+)
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker, Session
-from models import Request, ExtractionRun, GroundedEvidence
-from schemas import ExtractionCompleteIn
-
 
 from models import (
     Base,
@@ -22,9 +27,19 @@ from models import (
     ExtractionRun,
     DecisionRun,
     ReviewAction,
+    DecisionResult, 
     GroundedEvidence,
 )
-from schemas import CaseOut, DocumentOut, CaseDetailOut, ReviewIn, ExtractionCompleteIn, ExtractionStartOut, ExtractionStartDocOut
+from schemas import (
+    CaseOut,
+    DocumentOut,
+    CaseDetailOut,
+    ReviewIn,
+    ExtractionCompleteIn,
+    ExtractionStartOut,
+    ExtractionStartDocOut,
+    DecisionResultIn
+)
 
 # Database setup
 DATABASE_URL = os.environ["DATABASE_URL"]  # raises KeyError if missing
@@ -49,10 +64,12 @@ def get_db() -> Session:
     finally:
         db.close()
 
+
 @app.get("/health/db")
 def health_db(db: Session = Depends(get_db)):
     db.execute(text("SELECT 1"))
     return {"ok": True}
+
 
 # mapping DB to Frontend)
 DB_TO_FE_STATUS = {
@@ -64,7 +81,6 @@ DB_TO_FE_STATUS = {
     "review_pending": "REVIEW_PENDING",
     "reviewed": "REVIEWED",
 }
-
 
 
 def to_frontend_status(db_status: str) -> str:
@@ -99,7 +115,7 @@ def save_upload(file: UploadFile) -> Dict[str, Any]:
 
 def case_to_out(r: Request) -> CaseOut:
     return CaseOut(
-        caseId=str(r.request_id),         
+        caseId=str(r.request_id),
         studentId=r.student_id,
         studentName=r.student_name,
         courseRequested=r.course_requested,
@@ -111,14 +127,13 @@ def case_to_out(r: Request) -> CaseOut:
 
 def doc_to_out(d: Document) -> DocumentOut:
     return DocumentOut(
-        docId=str(d.doc_id),              
+        docId=str(d.doc_id),
         filename=d.filename,
         sha256=d.sha256,
         storageUri=d.storage_uri,
         createdAt=d.created_at,
         isActive=d.is_active,
     )
-
 
 
 def get_latest_extraction_run(db: Session, request_id: str) -> Optional[ExtractionRun]:
@@ -147,7 +162,7 @@ def build_decision_packet(db: Session, request_id: str) -> Dict[str, Any]:
 
     evidence = [
         {
-            "evidenceId": str(e.evidence_id),                
+            "evidenceId": str(e.evidence_id),
             "factType": e.fact_type,
             "factKey": e.fact_key,
             "factValue": e.fact_value,
@@ -158,7 +173,7 @@ def build_decision_packet(db: Session, request_id: str) -> Dict[str, Any]:
     ]
 
     return {
-        "extractionRunId": str(latest_run.extraction_run_id), 
+        "extractionRunId": str(latest_run.extraction_run_id),
         "evidence": evidence,
     }
 
@@ -188,7 +203,7 @@ def build_audit_log(db: Session, request_id: str) -> Dict[str, Any]:
     return {
         "extractionRuns": [
             {
-                "extractionRunId": str(r.extraction_run_id),   
+                "extractionRunId": str(r.extraction_run_id),
                 "status": r.status,
                 "createdAt": r.created_at,
                 "startedAt": r.started_at,
@@ -199,7 +214,7 @@ def build_audit_log(db: Session, request_id: str) -> Dict[str, Any]:
         ],
         "decisionRuns": [
             {
-                "decisionRunId": str(r.decision_run_id),       
+                "decisionRunId": str(r.decision_run_id),
                 "status": r.status,
                 "createdAt": r.created_at,
                 "startedAt": r.started_at,
@@ -210,7 +225,7 @@ def build_audit_log(db: Session, request_id: str) -> Dict[str, Any]:
         ],
         "reviewActions": [
             {
-                "reviewActionId": str(a.review_action_id),     
+                "reviewActionId": str(a.review_action_id),
                 "action": a.action,
                 "comment": a.comment,
                 "reviewerId": a.reviewer_id,
@@ -392,6 +407,7 @@ def submit_review(
     db.refresh(req)
     return case_to_out(req)
 
+
 @app.post("/api/cases/{caseId}/extraction/start", response_model=ExtractionStartOut)
 def start_extraction(caseId: str, db: Session = Depends(get_db)):
     req = db.query(Request).filter(Request.request_id == caseId).first()
@@ -478,7 +494,7 @@ def complete_extraction(caseId: str, body: ExtractionCompleteIn, db: Session = D
         db.add(
             GroundedEvidence(
                 request_id=caseId,
-                extraction_run_id=run.extraction_run_id,  
+                extraction_run_id=run.extraction_run_id,
                 fact_type=fact.factType,
                 fact_key=fact.factKey,
                 fact_value=fact.factValue,
@@ -498,4 +514,296 @@ def complete_extraction(caseId: str, body: ExtractionCompleteIn, db: Session = D
         "message": "Extraction completed",
         "extractionRunId": str(run.extraction_run_id),
         "factsInserted": len(body.facts),
+    }
+
+
+def build_decision_inputs(case: Request, docs: list[Document], evidence: list[GroundedEvidence]) -> dict:
+    return {
+        "case": {
+            "caseId": str(case.request_id),
+            "studentId": case.student_id,
+            "studentName": case.student_name,
+            "courseRequested": case.course_requested,
+            "status": case.status,
+            "createdAt": case.created_at.isoformat() if case.created_at else None,
+            "updatedAt": case.updated_at.isoformat() if case.updated_at else None,
+        },
+        "documents": [
+            {
+                "docId": str(d.doc_id),
+                "filename": d.filename,
+                "contentType": d.content_type,
+                "sha256": d.sha256,
+                "storageUri": d.storage_uri,
+                "sizeBytes": d.size_bytes,
+                "createdAt": d.created_at.isoformat() if d.created_at else None,
+                "isActive": d.is_active,
+            }
+            for d in docs
+        ],
+        "facts": [
+            {
+                "evidenceId": str(e.evidence_id),
+                "extractionRunId": str(e.extraction_run_id),
+                "factType": e.fact_type,
+                "factKey": e.fact_key,
+                "factValue": e.fact_value,
+                "factJson": e.fact_json,
+                "unknown": e.unknown,
+                "createdAt": e.created_at.isoformat() if e.created_at else None,
+            }
+            for e in evidence
+        ],
+    }
+
+
+# for Decision Engine (inputs-only)
+@app.post("/api/cases/{caseId}/decision/run")
+def decision_run(caseId: str, db: Session = Depends(get_db)):
+    # Parse UUID (important because your PKs are UUID(as_uuid=True))
+    try:
+        case_uuid = uuid.UUID(caseId)
+    except ValueError:
+        raise HTTPException(status_code=422, detail="Invalid caseId (must be a UUID)")
+
+    # Load case
+    case = db.query(Request).filter(Request.request_id == case_uuid).first()
+    if not case:
+        raise HTTPException(status_code=404, detail="Case not found")
+
+    # Guard: only allow once extraction is done
+    if case.status != "ready_for_decision":
+        raise HTTPException(
+            status_code=409,
+            detail=f"Case is not ready_for_decision (status={case.status})",
+        )
+
+    # ✅ NEW: Prevent duplicate completed decision runs
+    existing_run = (
+        db.query(DecisionRun)
+        .filter(
+            DecisionRun.request_id == case_uuid,
+            DecisionRun.status == "completed",
+        )
+        .first()
+    )
+    if existing_run:
+        raise HTTPException(
+            status_code=409,
+            detail="Decision inputs already built for this case",
+        )
+
+    # Pull active docs + evidence
+    docs = (
+        db.query(Document)
+        .filter(Document.request_id == case_uuid, Document.is_active == True)
+        .order_by(Document.created_at.asc())
+        .all()
+    )
+    if not docs:
+        raise HTTPException(status_code=409, detail="No active documents for this case")
+
+    evidence = (
+        db.query(GroundedEvidence)
+        .filter(GroundedEvidence.request_id == case_uuid)
+        .order_by(GroundedEvidence.created_at.asc())
+        .all()
+    )
+    if not evidence:
+        raise HTTPException(status_code=409, detail="No grounded evidence for this case")
+
+    # Build packet
+    decision_inputs = build_decision_inputs(case, docs, evidence)
+
+    # Insert decision_run (inputs-only => mark completed immediately)
+    run = DecisionRun(
+        request_id=case_uuid,
+        status="completed",
+        started_at=now_utc(),
+        finished_at=now_utc(),
+        error_message=None,
+        decision_inputs=decision_inputs,
+    )
+    db.add(run)
+
+    # IMPORTANT:
+    # Don't change case.status here — Ali’s decision logic will generate the recommendation separately.
+    db.commit()
+    db.refresh(run)
+
+    return {
+        "message": "Decision inputs built and stored",
+        "caseId": str(case_uuid),
+        "decisionRunId": str(run.decision_run_id),
+        "status": run.status,
+    }
+
+
+@app.get("/api/cases/{caseId}/decision/latest")
+def decision_latest(caseId: str, db: Session = Depends(get_db)):
+    try:
+        case_uuid = uuid.UUID(caseId)
+    except ValueError:
+        raise HTTPException(status_code=422, detail="Invalid caseId (must be UUID)")
+
+    run = (
+        db.query(DecisionRun)
+        .filter(DecisionRun.request_id == case_uuid)
+        .order_by(DecisionRun.created_at.desc())
+        .first()
+    )
+    if not run:
+        raise HTTPException(status_code=404, detail="No decision runs found for this case")
+
+    return {
+        "caseId": str(case_uuid),
+        "decisionRunId": str(run.decision_run_id),
+        "status": run.status,
+        "createdAt": run.created_at.isoformat() if run.created_at else None,
+        "decisionInputs": run.decision_inputs,
+    }
+
+
+# adding status summary endpoint
+@app.get("/api/cases/{caseId}/status")
+def case_status_summary(caseId: str, db: Session = Depends(get_db)):
+    try:
+        case_uuid = uuid.UUID(caseId)
+    except ValueError:
+        raise HTTPException(status_code=422, detail="Invalid caseId")
+
+    case = db.query(Request).filter(Request.request_id == case_uuid).first()
+    if not case:
+        raise HTTPException(status_code=404, detail="Case not found")
+
+    extraction_completed = (
+        db.query(ExtractionRun)
+        .filter(
+            ExtractionRun.request_id == case_uuid,
+            ExtractionRun.status == "completed",
+        )
+        .count()
+        > 0
+    )
+
+    decision_inputs_exist = (
+        db.query(DecisionRun)
+        .filter(
+            DecisionRun.request_id == case_uuid,
+            DecisionRun.status == "completed",
+        )
+        .count()
+        > 0
+    )
+
+    review_exists = (
+        db.query(ReviewAction)
+        .filter(ReviewAction.request_id == case_uuid)
+        .count()
+        > 0
+    )
+
+    return {
+        "caseId": str(case_uuid),
+        "caseStatus": case.status,
+        "extractionCompleted": extraction_completed,
+        "decisionInputsBuilt": decision_inputs_exist,
+        "reviewCompleted": review_exists,
+        "createdAt": case.created_at.isoformat() if case.created_at else None,
+        "updatedAt": case.updated_at.isoformat() if case.updated_at else None,
+    }
+
+@app.post("/api/cases/{caseId}/decision/result")
+def store_decision_result(caseId: str, body: DecisionResultIn, db: Session = Depends(get_db)):
+    # Validate case UUID
+    try:
+        case_uuid = uuid.UUID(caseId)
+    except ValueError:
+        raise HTTPException(status_code=422, detail="Invalid caseId (must be UUID)")
+
+    case = db.query(Request).filter(Request.request_id == case_uuid).first()
+    if not case:
+        raise HTTPException(status_code=404, detail="Case not found")
+
+    try:
+        run_uuid = uuid.UUID(body.decisionRunId)
+    except ValueError:
+        raise HTTPException(status_code=422, detail="Invalid decisionRunId (must be UUID)")
+
+    # makes sure decision run exists and belongs to this case
+    run = (
+        db.query(DecisionRun)
+        .filter(
+            DecisionRun.decision_run_id == run_uuid,
+            DecisionRun.request_id == case_uuid,
+        )
+        .first()
+    )
+    if not run:
+        raise HTTPException(status_code=404, detail="Decision run not found for this case")
+
+    # upsert into decision_results (1:1 with decision_runs)
+    existing = db.query(DecisionResult).filter(DecisionResult.decision_run_id == run_uuid).first()
+    if existing:
+        existing.result_json = body.resultJson
+        existing.needs_more_info = body.needsMoreInfo
+        existing.missing_fields = body.missingFields
+        # created_at has server_default NOW(). keep original for audit history
+    else:
+        db.add(
+            DecisionResult(
+                decision_run_id=run_uuid,
+                result_json=body.resultJson,
+                needs_more_info=body.needsMoreInfo,
+                missing_fields=body.missingFields,
+            )
+        )
+
+    #update case status based on workflow signal
+    # if more info needed -> needs_info
+    # else -> ai_recommendation (AI produced a recommendation, now human review)
+    case.status = "needs_info" if body.needsMoreInfo else "ai_recommendation"
+    case.updated_at = now_utc()
+
+    db.commit()
+
+    return {
+        "message": "Decision result stored",
+        "caseId": str(case_uuid),
+        "decisionRunId": str(run_uuid),
+        "caseStatus": case.status,
+    }
+
+# get latest decision result
+@app.get("/api/cases/{caseId}/decision/result/latest")
+def get_latest_decision_result(caseId: str, db: Session = Depends(get_db)):
+    try:
+        case_uuid = uuid.UUID(caseId)
+    except ValueError:
+        raise HTTPException(status_code=422, detail="Invalid caseId (must be UUID)")
+
+    latest_run = (
+        db.query(DecisionRun)
+        .filter(DecisionRun.request_id == case_uuid)
+        .order_by(DecisionRun.created_at.desc())
+        .first()
+    )
+    if not latest_run:
+        raise HTTPException(status_code=404, detail="No decision runs found for this case")
+
+    res = (
+        db.query(DecisionResult)
+        .filter(DecisionResult.decision_run_id == latest_run.decision_run_id)
+        .first()
+    )
+    if not res:
+        raise HTTPException(status_code=404, detail="No decision result found for latest decision run")
+
+    return {
+        "caseId": str(case_uuid),
+        "decisionRunId": str(latest_run.decision_run_id),
+        "createdAt": res.created_at.isoformat() if res.created_at else None,
+        "needsMoreInfo": res.needs_more_info,
+        "missingFields": res.missing_fields,
+        "resultJson": res.result_json,
     }

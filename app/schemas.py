@@ -59,3 +59,9 @@ class ExtractionFactIn(BaseModel):
 class ExtractionCompleteIn(BaseModel):
     extractionRunId: str
     facts: List[ExtractionFactIn]
+
+class DecisionResultIn(BaseModel):
+    decisionRunId: str
+    resultJson: Dict[str, Any]              
+    needsMoreInfo: bool = False             
+    missingFields: Optional[Dict[str, Any]] = None  
