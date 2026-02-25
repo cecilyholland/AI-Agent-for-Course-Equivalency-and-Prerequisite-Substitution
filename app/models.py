@@ -109,3 +109,23 @@ class ReviewAction(Base):
     comment = Column(Text, nullable=False)
 
     decision_run_id = Column(UUID(as_uuid=True), ForeignKey("decision_runs.decision_run_id", ondelete="SET NULL"))
+
+class DecisionResult(Base):
+    __tablename__ = "decision_results"
+
+    decision_run_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("decision_runs.decision_run_id", ondelete="CASCADE"),
+        primary_key=True,
+    )
+
+    created_at = Column(DateTime(timezone=True), nullable=False, server_default=text("NOW()"))
+
+    # matches db_schema.sql: result_json JSONB NOT NULL
+    result_json = Column(JSONB, nullable=False)
+
+    # workflow signal from engine
+    needs_more_info = Column(Boolean, nullable=False, server_default=text("FALSE"))
+
+    # optional list/structure of fields needed
+    missing_fields = Column(JSONB)
