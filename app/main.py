@@ -20,6 +20,8 @@ from fastapi import (
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker, Session
 
+from workflow_logger import log_event
+
 from models import (
     Base,
     Request,
@@ -295,6 +297,20 @@ def create_case(
     db.commit()
     db.refresh(req)
 
+    log_event(
+    request_id=str(req.request_id),
+    status=req.status,
+    actor="student",
+    event="StudentAttempt",
+    extra={
+        "student_id": req.student_id,
+        "student_name": req.student_name,
+        "course_requested": req.course_requested,
+        "doc_count": len(files),
+        "filenames": [f.filename for f in files],
+    },
+    )
+
     for f in files:
         meta = save_upload(f)
         db.add(
@@ -318,6 +334,14 @@ def create_case(
         )
     )
 
+    log_event(
+    request_id=str(req.request_id),
+    status=req.status,
+    actor="system",
+    event="ExtractionQueued",
+    extra={"queue_reason": "new_case"},
+    )
+
     db.commit()
     return case_to_out(req)
 
@@ -336,6 +360,14 @@ def add_documents(
     req.status = "extracting"
     req.updated_at = now_utc()
 
+    log_event(
+    request_id=str(req.request_id),
+    status=req.status,
+    actor="system",
+    event="StatusChange",
+    extra={"to": "extracting", "reason": "documents_added"},
+    )
+
     for f in files:
         meta = save_upload(f)
         db.add(
@@ -351,12 +383,28 @@ def add_documents(
             )
         )
 
+    log_event(
+    request_id=str(req.request_id),
+    status=req.status,
+    actor="student",
+    event="DocumentsAdded",
+    extra={"doc_count": len(files), "filenames": [f.filename for f in files]},
+    )
+    
     db.add(
         ExtractionRun(
             request_id=caseId,
             status="queued",
             created_at=now_utc(),
         )
+    )
+
+    log_event(
+    request_id=str(req.request_id),
+    status=req.status,
+    actor="system",
+    event="ExtractionQueued",
+    extra={"queue_reason": "documents_added"},
     )
 
     db.commit()
@@ -395,6 +443,19 @@ def submit_review(
         )
     )
 
+    log_event(
+    request_id=str(req.request_id),
+    status=req.status,
+    actor="reviewer",
+    event="ReviewerActionSubmitted",
+    extra={
+        "reviewer_id": body.reviewerId,
+        "action": body.action,
+        "action_db": action_db,
+        "comment_preview": (body.comment[:160] + "…") if len(body.comment) > 160 else body.comment,
+    },
+    )
+
     # Update request status
     if body.action == "REQUEST_INFO":
         req.status = "needs_info"
@@ -402,6 +463,14 @@ def submit_review(
         req.status = "reviewed"
 
     req.updated_at = now_utc()
+
+    log_event(
+    request_id=str(req.request_id),
+    status=req.status,
+    actor="system",
+    event="StatusChange",
+    extra={"to": req.status, "set_by": "review"},
+    )
 
     db.commit()
     db.refresh(req)
