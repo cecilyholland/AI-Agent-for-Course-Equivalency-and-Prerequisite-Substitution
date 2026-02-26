@@ -20,17 +20,17 @@ from fastapi import (
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker, Session
 
-from models import (
+from app.models import (
     Base,
     Request,
     Document,
     ExtractionRun,
     DecisionRun,
     ReviewAction,
-    DecisionResult, 
+    DecisionResult,
     GroundedEvidence,
 )
-from schemas import (
+from app.schemas import (
     CaseOut,
     DocumentOut,
     CaseDetailOut,
@@ -38,13 +38,26 @@ from schemas import (
     ExtractionCompleteIn,
     ExtractionStartOut,
     ExtractionStartDocOut,
-    DecisionResultIn
+    DecisionResultIn,
+)
+import httpx
+from decision_engine.contracts import (
+    DecisionInputsPacket,
+    CourseEvidence,
+    TargetCourseProfile,
+    PolicyConfig,
+    EvidenceField,
+    decide,
 )
 
+
 # Database setup
-DATABASE_URL = os.environ["DATABASE_URL"]  # raises KeyError if missing
+DATABASE_URL = os.environ["DATABASE_URL"]  
 print("DATABASE_URL =", DATABASE_URL)
 
+# needs this for auto-integration
+DECISION_ENGINE_URL = os.getenv("DECISION_ENGINE_URL")  
+DECISION_ENGINE_TIMEOUT_SECS = float(os.getenv("DECISION_ENGINE_TIMEOUT_SECS", "30"))
 engine = create_engine(
     DATABASE_URL,
     connect_args={"check_same_thread": False} if DATABASE_URL.startswith("sqlite") else {},
@@ -77,7 +90,7 @@ DB_TO_FE_STATUS = {
     "extracting": "EXTRACTING",
     "needs_info": "NEEDS_INFO",
     "ready_for_decision": "READY_FOR_DECISION",
-    "ai_recommendation": "AI_RECOMMMENDATION",
+    "ai_recommendation": "AI_RECOMMENDATION",
     "review_pending": "REVIEW_PENDING",
     "reviewed": "REVIEWED",
 }
@@ -238,8 +251,6 @@ def build_audit_log(db: Session, request_id: str) -> Dict[str, Any]:
 
 # FRONTEND ROUTES
 
-# GET /api/cases?studentId={studentId}
-# GET /api/cases
 @app.get("/api/cases", response_model=List[CaseOut])
 def list_cases(
     studentId: Optional[str] = Query(default=None),
@@ -252,7 +263,6 @@ def list_cases(
     return [case_to_out(c) for c in cases]
 
 
-# GET /api/cases/{caseId}
 @app.get("/api/cases/{caseId}", response_model=CaseDetailOut)
 def get_case(caseId: str, db: Session = Depends(get_db)):
     req = db.query(Request).filter(Request.request_id == caseId).first()
@@ -274,7 +284,6 @@ def get_case(caseId: str, db: Session = Depends(get_db)):
     )
 
 
-# POST /api/cases
 @app.post("/api/cases", response_model=CaseOut)
 def create_case(
     studentId: str = Form(...),
@@ -322,7 +331,6 @@ def create_case(
     return case_to_out(req)
 
 
-# POST /api/cases/{caseId}/documents
 @app.post("/api/cases/{caseId}/documents", response_model=CaseOut)
 def add_documents(
     caseId: str,
@@ -364,7 +372,7 @@ def add_documents(
     return case_to_out(req)
 
 
-# POST /api/cases/{caseId}/review
+# ✅ UPDATED: Link review to latest decision_run_id (if present)
 @app.post("/api/cases/{caseId}/review", response_model=CaseOut)
 def submit_review(
     caseId: str,
@@ -385,6 +393,13 @@ def submit_review(
     if not action_db:
         raise HTTPException(status_code=400, detail=f"Invalid action: {body.action}")
 
+    latest_decision_run = (
+        db.query(DecisionRun)
+        .filter(DecisionRun.request_id == caseId)
+        .order_by(DecisionRun.created_at.desc())
+        .first()
+    )
+
     db.add(
         ReviewAction(
             request_id=caseId,
@@ -392,10 +407,10 @@ def submit_review(
             action=action_db,
             comment=body.comment,
             created_at=now_utc(),
+            decision_run_id=latest_decision_run.decision_run_id if latest_decision_run else None,
         )
     )
 
-    # Update request status
     if body.action == "REQUEST_INFO":
         req.status = "needs_info"
     else:
@@ -414,7 +429,6 @@ def start_extraction(caseId: str, db: Session = Depends(get_db)):
     if not req:
         raise HTTPException(status_code=404, detail="Case not found")
 
-    # Claim the most recent queued run for this case
     run = (
         db.query(ExtractionRun)
         .filter(ExtractionRun.request_id == caseId, ExtractionRun.status == "queued")
@@ -424,7 +438,6 @@ def start_extraction(caseId: str, db: Session = Depends(get_db)):
     if not run:
         raise HTTPException(status_code=409, detail="No queued extraction run for this case")
 
-    # Fetch active documents to send to extraction service
     docs = (
         db.query(Document)
         .filter(Document.request_id == caseId, Document.is_active == True)
@@ -461,7 +474,12 @@ def start_extraction(caseId: str, db: Session = Depends(get_db)):
 @app.post("/api/cases/{caseId}/extraction/complete")
 def complete_extraction(caseId: str, body: ExtractionCompleteIn, db: Session = Depends(get_db)):
     # validating case exists
-    req = db.query(Request).filter(Request.request_id == caseId).first()
+    try:
+        case_uuid = uuid.UUID(caseId)
+    except ValueError:
+        raise HTTPException(status_code=422, detail="Invalid caseId (must be a UUID)")
+
+    req = db.query(Request).filter(Request.request_id == case_uuid).first()
     if not req:
         raise HTTPException(status_code=404, detail="Case not found")
 
@@ -470,7 +488,7 @@ def complete_extraction(caseId: str, body: ExtractionCompleteIn, db: Session = D
         db.query(ExtractionRun)
         .filter(
             ExtractionRun.extraction_run_id == body.extractionRunId,
-            ExtractionRun.request_id == caseId,
+            ExtractionRun.request_id == case_uuid,
         )
         .first()
     )
@@ -490,30 +508,95 @@ def complete_extraction(caseId: str, body: ExtractionCompleteIn, db: Session = D
     run.finished_at = now_utc()
 
     # insert the structured evidence
+    inserted_evidence: list[GroundedEvidence] = []
     for fact in body.facts:
+        ev = GroundedEvidence(
+            request_id=case_uuid,
+            extraction_run_id=run.extraction_run_id,
+            fact_type=fact.factType,
+            fact_key=fact.factKey,
+            fact_value=fact.factValue,
+            fact_json=fact.factJson,
+            unknown=fact.unknown,
+            created_at=now_utc(),
+        )
+        db.add(ev)
+        inserted_evidence.append(ev)
+
+    # IMPORTANT: ensure evidence is visible to queries in this same request (autoflush is off)
+    db.flush()
+
+    # moving forward in workflow
+        # moving forward in workflow
+    req.status = "ready_for_decision"
+    req.updated_at = now_utc()
+
+    # --- NEW: Auto-run decision engine (Mode A) after extraction completes ---
+    # Load the evidence we just inserted (scoped to this extraction_run_id)
+    evidence_rows = inserted_evidence
+
+    # Create a decision_run record first (audit)
+    decision_run = DecisionRun(
+        request_id=req.request_id,
+        status="running",
+        started_at=now_utc(),
+        finished_at=None,
+        error_message=None,
+        decision_inputs=None,
+    )
+    db.add(decision_run)
+    db.flush()  # ensures decision_run_id exists before we write decision_results
+
+    try:
+        packet = build_contracts_packet(req, evidence_rows)
+
+        # store the exact packet used (JSONB) for audit/repro
+        decision_run.decision_inputs = packet.model_dump()
+
+        # run engine locally (Mode A)
+        engine_result = decide(packet)
+
+        # persist decision result (1:1 with decision_runs)
+        needs_more_info = (engine_result.decision.value == "NEEDS_MORE_INFO")
+        missing_fields = (
+            {"missing_info_requests": engine_result.missing_info_requests}
+            if engine_result.missing_info_requests
+            else None
+        )
+
         db.add(
-            GroundedEvidence(
-                request_id=caseId,
-                extraction_run_id=run.extraction_run_id,
-                fact_type=fact.factType,
-                fact_key=fact.factKey,
-                fact_value=fact.factValue,
-                fact_json=fact.factJson,
-                unknown=fact.unknown,
-                created_at=now_utc(),
+            DecisionResult(
+                decision_run_id=decision_run.decision_run_id,
+                result_json=engine_result.model_dump(),
+                needs_more_info=needs_more_info,
+                missing_fields=missing_fields,
             )
         )
 
-    # moving forward in workflow
-    req.status = "ready_for_decision"
-    req.updated_at = now_utc()
+        decision_run.status = "completed"
+        decision_run.finished_at = now_utc()
+
+        # advance workflow status (mirrors /decision/result behavior)
+        req.status = "needs_info" if needs_more_info else "ai_recommendation"
+        req.updated_at = now_utc()
+
+    except Exception as ex:
+        decision_run.status = "failed"
+        decision_run.error_message = str(ex)
+        decision_run.finished_at = now_utc()
+
+        # safest workflow signal: needs_info (advisor can review + re-run later)
+        req.status = "needs_info"
+        req.updated_at = now_utc()
 
     db.commit()
 
     return {
-        "message": "Extraction completed",
+        "message": "Extraction completed (decision engine triggered)",
         "extractionRunId": str(run.extraction_run_id),
         "factsInserted": len(body.facts),
+        "decisionRunId": str(decision_run.decision_run_id),
+        "caseStatus": req.status,
     }
 
 
@@ -571,14 +654,14 @@ def decision_run(caseId: str, db: Session = Depends(get_db)):
     if not case:
         raise HTTPException(status_code=404, detail="Case not found")
 
-    # Guard: only allow once extraction is done
+    # this is a guard. only allow once extraction is done
     if case.status != "ready_for_decision":
         raise HTTPException(
             status_code=409,
             detail=f"Case is not ready_for_decision (status={case.status})",
         )
 
-    # ✅ NEW: Prevent duplicate completed decision runs
+    # prevent duplicate completed decision runs
     existing_run = (
         db.query(DecisionRun)
         .filter(
@@ -588,12 +671,8 @@ def decision_run(caseId: str, db: Session = Depends(get_db)):
         .first()
     )
     if existing_run:
-        raise HTTPException(
-            status_code=409,
-            detail="Decision inputs already built for this case",
-        )
+        raise HTTPException(status_code=409, detail="Decision inputs already built for this case")
 
-    # Pull active docs + evidence
     docs = (
         db.query(Document)
         .filter(Document.request_id == case_uuid, Document.is_active == True)
@@ -612,10 +691,8 @@ def decision_run(caseId: str, db: Session = Depends(get_db)):
     if not evidence:
         raise HTTPException(status_code=409, detail="No grounded evidence for this case")
 
-    # Build packet
     decision_inputs = build_decision_inputs(case, docs, evidence)
 
-    # Insert decision_run (inputs-only => mark completed immediately)
     run = DecisionRun(
         request_id=case_uuid,
         status="completed",
@@ -626,8 +703,6 @@ def decision_run(caseId: str, db: Session = Depends(get_db)):
     )
     db.add(run)
 
-    # IMPORTANT:
-    # Don't change case.status here — Ali’s decision logic will generate the recommendation separately.
     db.commit()
     db.refresh(run)
 
@@ -664,7 +739,6 @@ def decision_latest(caseId: str, db: Session = Depends(get_db)):
     }
 
 
-# adding status summary endpoint
 @app.get("/api/cases/{caseId}/status")
 def case_status_summary(caseId: str, db: Session = Depends(get_db)):
     try:
@@ -713,9 +787,9 @@ def case_status_summary(caseId: str, db: Session = Depends(get_db)):
         "updatedAt": case.updated_at.isoformat() if case.updated_at else None,
     }
 
+
 @app.post("/api/cases/{caseId}/decision/result")
 def store_decision_result(caseId: str, body: DecisionResultIn, db: Session = Depends(get_db)):
-    # Validate case UUID
     try:
         case_uuid = uuid.UUID(caseId)
     except ValueError:
@@ -730,7 +804,6 @@ def store_decision_result(caseId: str, body: DecisionResultIn, db: Session = Dep
     except ValueError:
         raise HTTPException(status_code=422, detail="Invalid decisionRunId (must be UUID)")
 
-    # makes sure decision run exists and belongs to this case
     run = (
         db.query(DecisionRun)
         .filter(
@@ -760,8 +833,8 @@ def store_decision_result(caseId: str, body: DecisionResultIn, db: Session = Dep
         )
 
     #update case status based on workflow signal
-    # if more info needed -> needs_info
-    # else -> ai_recommendation (AI produced a recommendation, now human review)
+    # if more info needed is true then set needs_info
+    # else ai_recommendation (AI produced a recommendation, now human review)
     case.status = "needs_info" if body.needsMoreInfo else "ai_recommendation"
     case.updated_at = now_utc()
 
@@ -774,7 +847,7 @@ def store_decision_result(caseId: str, body: DecisionResultIn, db: Session = Dep
         "caseStatus": case.status,
     }
 
-# get latest decision result
+
 @app.get("/api/cases/{caseId}/decision/result/latest")
 def get_latest_decision_result(caseId: str, db: Session = Depends(get_db)):
     try:
@@ -807,3 +880,111 @@ def get_latest_decision_result(caseId: str, db: Session = Depends(get_db)):
         "missingFields": res.missing_fields,
         "resultJson": res.result_json,
     }
+
+# --- Decision Engine (Mode A) mapping helpers ---
+
+def _first_non_empty(*vals):
+    for v in vals:
+        if v is None:
+            continue
+        if isinstance(v, str) and not v.strip():
+            continue
+        return v
+    return None
+
+
+def map_evidence_rows_to_course_evidence(evidence_rows: list[GroundedEvidence]) -> CourseEvidence:
+    """
+    Best-effort mapper from grounded_evidence to Ali's CourseEvidence contract.
+    Uses fact_key / fact_type naming conventions.
+    Citations left empty for now (Cecily chunk-linking later).
+    """
+
+    # Defaults: unknown unless we find a value
+    fields = {
+        "credits": EvidenceField(value=None, unknown=True, citations=[]),
+        "contact_hours_lecture": EvidenceField(value=None, unknown=True, citations=[]),
+        "contact_hours_lab": EvidenceField(value=None, unknown=True, citations=[]),
+        "lab_component": EvidenceField(value=None, unknown=True, citations=[]),
+        "topics": EvidenceField(value=None, unknown=True, citations=[]),
+        "outcomes": EvidenceField(value=None, unknown=True, citations=[]),
+        "assessments": EvidenceField(value=None, unknown=True, citations=[]),
+    }
+
+    def key_of(e: GroundedEvidence) -> str:
+        return (e.fact_key or e.fact_type or "").strip().lower()
+
+    for e in evidence_rows:
+        k = key_of(e)
+
+        # prefer structured JSON if present, else fact_value
+        v = _first_non_empty(e.fact_json, e.fact_value)
+        # Unwrap {"items":[...]} payloads into plain lists for the decision engine
+        if isinstance(v, dict) and "items" in v and isinstance(v["items"], list):
+            v = v["items"]
+
+        # credits
+        if k in {"credits", "credit_hours", "units"}:
+            fields["credits"] = EvidenceField(value=v, unknown=bool(e.unknown), citations=[])
+            continue
+
+        # contact hours
+        if k in {"contact_hours_lecture", "lecture_hours", "lecture_contact_hours"}:
+            fields["contact_hours_lecture"] = EvidenceField(value=v, unknown=bool(e.unknown), citations=[])
+            continue
+
+        if k in {"contact_hours_lab", "lab_hours", "lab_contact_hours"}:
+            fields["contact_hours_lab"] = EvidenceField(value=v, unknown=bool(e.unknown), citations=[])
+            continue
+
+        # lab component (try to coerce truthy strings)
+        if k in {"lab_component", "has_lab", "lab_required", "includes_lab"}:
+            lab_val = v
+            if isinstance(lab_val, str):
+                s = lab_val.strip().lower()
+                if s in {"true", "yes", "y", "1"}:
+                    lab_val = True
+                elif s in {"false", "no", "n", "0"}:
+                    lab_val = False
+            fields["lab_component"] = EvidenceField(value=lab_val, unknown=bool(e.unknown), citations=[])
+            continue
+
+        # topics / outcomes / assessments
+        if k in {"topics", "course_topics"}:
+            fields["topics"] = EvidenceField(value=v, unknown=bool(e.unknown), citations=[])
+            continue
+
+        if k in {"outcomes", "learning_outcomes", "slos"}:
+            fields["outcomes"] = EvidenceField(value=v, unknown=bool(e.unknown), citations=[])
+            continue
+
+        if k in {"assessments", "evaluation_methods", "grading_components"}:
+            fields["assessments"] = EvidenceField(value=v, unknown=bool(e.unknown), citations=[])
+            continue
+
+    return CourseEvidence(**fields)
+
+
+def build_contracts_packet(case: Request, evidence_rows: list[GroundedEvidence]) -> DecisionInputsPacket:
+    """
+    Build Ali's DecisionInputsPacket from our DB evidence.
+    Target course profile is hardcoded for demo (replace later with DB-backed profiles).
+    """
+    source = map_evidence_rows_to_course_evidence(evidence_rows)
+
+    # Demo target profile (replace later with course profile config)
+    target = TargetCourseProfile(
+        target_credits=3,
+        target_lab_required=False,
+        required_topics=[],
+        required_outcomes=[],
+    )
+
+    policy = PolicyConfig()  # uses defaults from contracts.py
+
+    return DecisionInputsPacket(
+        case_id=str(case.request_id),
+        source_course=source,
+        target_course=target,
+        policy=policy,
+    )

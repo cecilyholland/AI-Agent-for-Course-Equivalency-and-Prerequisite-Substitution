@@ -34,7 +34,8 @@ class ReviewIn(BaseModel):
 class CaseDetailOut(BaseModel):
     case: CaseOut
     documents: List[DocumentOut]
-    decisionPacket: Dict[str, Any]
+    evidencePacket: Dict[str, Any]
+    decisionResult: Optional[Dict[str, Any]] = None
     auditLog: Dict[str, Any]
 
 class ExtractionStartDocOut(BaseModel):
