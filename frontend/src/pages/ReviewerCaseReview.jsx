@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
-import { fetchCase, submitReviewerDecision } from "../services/api";
+import { fetchCase, submitReviewerDecision, fetchDecisionResult } from "../services/api";
 import { useAuth } from "../services/auth";
 import StatusBadge from "../components/StatusBadge";
 import DecisionSummaryCard from "../components/DecisionSummaryCard";
@@ -13,16 +13,41 @@ export default function ReviewerCaseReview() {
   const { id } = useParams();
   const { user } = useAuth();
   const [caseData, setCaseData] = useState(null);
+  const [decisionResult, setDecisionResult] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
-    fetchCase(id).then((data) => {
-      setCaseData(data);
-      setLoading(false);
-    });
+    Promise.all([fetchCase(id), fetchDecisionResult(id)])
+      .then(([caseData, decisionData]) => {
+        setCaseData(caseData);
+        setDecisionResult(decisionData);
+        setLoading(false);
+      })
+      .catch((err) => {
+        setError(err.message);
+        setLoading(false);
+      });
   }, [id]);
 
-  if (!loading && !caseData) {
+  if (loading) {
+    return (
+      <div className="reviewer-case-review">
+        <p>Loading...</p>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="reviewer-case-review">
+        <p>Error: {error}. Is the backend running?</p>
+        <Link to="/reviewer">Back to Dashboard</Link>
+      </div>
+    );
+  }
+
+  if (!caseData) {
     return (
       <div className="case-not-found">
         <p>Case not found.</p>
@@ -31,18 +56,11 @@ export default function ReviewerCaseReview() {
     );
   }
 
-  if (loading || !caseData) {
-    return (
-      <div className="reviewer-case-review">
-        <p>Loading...</p>
-      </div>
-    );
-  }
-
   const handleAction = async (action, comment) => {
     await submitReviewerDecision(id, action, comment, user.utcId);
-    const updated = await fetchCase(id);
+    const [updated, updatedDecision] = await Promise.all([fetchCase(id), fetchDecisionResult(id)]);
     setCaseData(updated);
+    setDecisionResult(updatedDecision);
   };
 
   const formatDate = (dateStr) => {
@@ -82,6 +100,19 @@ export default function ReviewerCaseReview() {
           </li>
         ))}
       </ul>
+
+      {decisionResult && (
+        <div className="ai-decision-section">
+          <h2 className="section-title">AI Recommendation</h2>
+          <DecisionSummaryCard result={decisionResult} />
+          <DecisionExplanation
+            reasons={decisionResult.reasons}
+            gaps={decisionResult.gaps}
+            bridgePlan={decisionResult.bridgePlan}
+            missingInfoRequests={decisionResult.missingInfoRequests}
+          />
+        </div>
+      )}
 
       {caseData.reviewerComment && (
         <div className="existing-comment">

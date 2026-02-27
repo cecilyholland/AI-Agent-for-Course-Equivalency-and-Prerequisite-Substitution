@@ -10,15 +10,22 @@ export default function ReviewerDashboard() {
   const [activeFilter, setActiveFilter] = useState("ALL");
   const [allCases, setAllCases] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
-    fetchAllCases().then((data) => {
-      setAllCases(data);
-      setLoading(false);
-    });
+    fetchAllCases()
+      .then((data) => {
+        setAllCases(data);
+        setLoading(false);
+      })
+      .catch((err) => {
+        setError(err.message);
+        setLoading(false);
+      });
   }, []);
 
   if (loading) return <div className="reviewer-dashboard"><h1>Reviewer Dashboard</h1><p>Loading...</p></div>;
+  if (error) return <div className="reviewer-dashboard"><h1>Reviewer Dashboard</h1><p>Error: {error}. Is the backend running?</p></div>;
 
   const filteredCases = allCases.filter((c) => {
     if (activeFilter === "PENDING") {

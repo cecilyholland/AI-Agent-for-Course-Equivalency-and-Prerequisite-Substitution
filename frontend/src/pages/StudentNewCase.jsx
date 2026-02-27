@@ -84,8 +84,8 @@ export default function StudentNewCase() {
           <div className="new-case__success-icon">&#x2705;</div>
           <h2>Request Submitted</h2>
           <p>
-            Your equivalency request has been submitted. The AI agent will begin
-            extracting and analyzing your documents shortly.
+            Your equivalency request has been submitted. Your documents
+            are being processed and you will be notified of any updates.
           </p>
           <p className="new-case__success-status">
             Status: <strong>UPLOADED</strong>

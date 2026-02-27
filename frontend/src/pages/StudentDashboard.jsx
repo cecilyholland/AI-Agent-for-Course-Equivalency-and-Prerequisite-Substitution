@@ -9,15 +9,22 @@ export default function StudentDashboard() {
 
   const [cases, setCases] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
-    fetchStudentCases(studentId).then((data) => {
-      setCases(data);
-      setLoading(false);
-    });
+    fetchStudentCases(studentId)
+      .then((data) => {
+        setCases(data);
+        setLoading(false);
+      })
+      .catch((err) => {
+        setError(err.message);
+        setLoading(false);
+      });
   }, [studentId]);
 
   if (loading) return <div className="student-dashboard"><p>Loading...</p></div>;
+  if (error) return <div className="student-dashboard"><p>Error: {error}.</p></div>;
 
   return (
     <div className="student-dashboard">
