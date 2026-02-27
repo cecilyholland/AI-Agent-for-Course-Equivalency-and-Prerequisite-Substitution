@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
-import { fetchCase, submitReviewerDecision } from "../services/api";
+import { fetchCase, submitReviewerDecision, fetchDecisionResult } from "../services/api";
+import { useAuth } from "../services/auth";
 import StatusBadge from "../components/StatusBadge";
 import DecisionSummaryCard from "../components/DecisionSummaryCard";
 import DecisionExplanation from "../components/DecisionExplanation";
@@ -10,9 +11,41 @@ import "./ReviewerCaseReview.css";
 
 export default function ReviewerCaseReview() {
   const { id } = useParams();
-  const [, forceUpdate] = useState(0);
+  const { user } = useAuth();
+  const [caseData, setCaseData] = useState(null);
+  const [decisionResult, setDecisionResult] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-  const caseData = fetchCase(id);
+  useEffect(() => {
+    Promise.all([fetchCase(id), fetchDecisionResult(id)])
+      .then(([caseData, decisionData]) => {
+        setCaseData(caseData);
+        setDecisionResult(decisionData);
+        setLoading(false);
+      })
+      .catch((err) => {
+        setError(err.message);
+        setLoading(false);
+      });
+  }, [id]);
+
+  if (loading) {
+    return (
+      <div className="reviewer-case-review">
+        <p>Loading...</p>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="reviewer-case-review">
+        <p>Error: {error}. Is the backend running?</p>
+        <Link to="/reviewer">Back to Dashboard</Link>
+      </div>
+    );
+  }
 
   if (!caseData) {
     return (
@@ -23,9 +56,11 @@ export default function ReviewerCaseReview() {
     );
   }
 
-  const handleAction = (action, comment) => {
-    submitReviewerDecision(id, action, comment);
-    forceUpdate((n) => n + 1);
+  const handleAction = async (action, comment) => {
+    await submitReviewerDecision(id, action, comment, user.utcId);
+    const [updated, updatedDecision] = await Promise.all([fetchCase(id), fetchDecisionResult(id)]);
+    setCaseData(updated);
+    setDecisionResult(updatedDecision);
   };
 
   const formatDate = (dateStr) => {
@@ -47,11 +82,11 @@ export default function ReviewerCaseReview() {
       <div className="case-header">
         <div className="case-header-title">
           <h1>
-            {caseData.id} &mdash; {caseData.course_requested}
+            {caseData.id} &mdash; {caseData.courseRequested}
           </h1>
           <StatusBadge status={caseData.status} />
         </div>
-        <div className="case-student-name">{caseData.student_name}</div>
+        <div className="case-student-name">{caseData.studentName}</div>
       </div>
 
       <h2 className="section-title">Uploaded Documents</h2>
@@ -60,29 +95,29 @@ export default function ReviewerCaseReview() {
           <li key={doc.id} className="document-item">
             <span className="document-name">{doc.name}</span>
             <span className="document-date">
-              {formatDate(doc.uploaded_at)}
+              {formatDate(doc.uploadedAt)}
             </span>
           </li>
         ))}
       </ul>
 
-      {caseData.decision_result && (
-        <div className="ai-recommendation-panel">
+      {decisionResult && (
+        <div className="ai-decision-section">
           <h2 className="section-title">AI Recommendation</h2>
-          <DecisionSummaryCard result={caseData.decision_result} />
+          <DecisionSummaryCard result={decisionResult} />
           <DecisionExplanation
-            reasons={caseData.decision_result.reasons}
-            gaps={caseData.decision_result.gaps}
-            bridgePlan={caseData.decision_result.bridge_plan}
-            missingInfoRequests={caseData.decision_result.missing_info_requests}
+            reasons={decisionResult.reasons}
+            gaps={decisionResult.gaps}
+            bridgePlan={decisionResult.bridgePlan}
+            missingInfoRequests={decisionResult.missingInfoRequests}
           />
         </div>
       )}
 
-      {caseData.reviewer_comment && (
+      {caseData.reviewerComment && (
         <div className="existing-comment">
           <div className="existing-comment-label">Previous Reviewer Comment</div>
-          <p>{caseData.reviewer_comment}</p>
+          <p>{caseData.reviewerComment}</p>
         </div>
       )}
 

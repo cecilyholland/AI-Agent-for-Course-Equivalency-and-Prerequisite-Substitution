@@ -20,12 +20,12 @@ export default function StudentNewCase() {
     return (bytes / (1024 * 1024)).toFixed(1) + " MB";
   };
 
-  const validateFiles = (files) => {
+  const validateAndAddFiles = (fileList) => {
     const valid = [];
     const invalid = [];
-    Array.from(files).forEach((f) => {
+    Array.from(fileList).forEach((f) => {
       if (f.name.toLowerCase().endsWith(".pdf")) {
-        valid.push({ name: f.name, size: formatSize(f.size) });
+        valid.push({ file: f, name: f.name, size: formatSize(f.size) });
       } else {
         invalid.push(f.name);
       }
@@ -41,7 +41,7 @@ export default function StudentNewCase() {
   const handleFileSelect = (e) => {
     const files = e.target.files;
     if (!files) return;
-    const valid = validateFiles(files);
+    const valid = validateAndAddFiles(files);
     setStagedFiles((prev) => [...prev, ...valid]);
     e.target.value = "";
   };
@@ -49,7 +49,7 @@ export default function StudentNewCase() {
   const handleDrop = (e) => {
     e.preventDefault();
     const files = e.dataTransfer.files;
-    const valid = validateFiles(files);
+    const valid = validateAndAddFiles(files);
     setStagedFiles((prev) => [...prev, ...valid]);
   };
 
@@ -57,14 +57,18 @@ export default function StudentNewCase() {
     setStagedFiles((prev) => prev.filter((_, i) => i !== index));
   };
 
-  const handleSubmit = () => {
-    submitNewCase({
-      studentId,
-      studentName: studentId, // backend resolves the real name from auth
-      courseRequested: targetCourse,
-      files: stagedFiles,
-    });
-    setSubmitted(true);
+  const handleSubmit = async () => {
+    try {
+      await submitNewCase({
+        studentId,
+        studentName: studentId,
+        courseRequested: targetCourse,
+        files: stagedFiles.map((f) => f.file),
+      });
+      setSubmitted(true);
+    } catch (err) {
+      console.error(err);
+    }
   };
 
   const canSubmit =
@@ -80,8 +84,8 @@ export default function StudentNewCase() {
           <div className="new-case__success-icon">&#x2705;</div>
           <h2>Request Submitted</h2>
           <p>
-            Your equivalency request has been submitted. The AI agent will begin
-            extracting and analyzing your documents shortly.
+            Your equivalency request has been submitted. Your documents
+            are being processed and you will be notified of any updates.
           </p>
           <p className="new-case__success-status">
             Status: <strong>UPLOADED</strong>

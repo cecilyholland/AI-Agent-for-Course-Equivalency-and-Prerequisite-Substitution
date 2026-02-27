@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { fetchAllCases } from "../services/api";
 import StatusBadge from "../components/StatusBadge";
@@ -8,8 +8,25 @@ const PENDING_STATUSES = ["REVIEW_PENDING", "AI_RECOMMENDATION"];
 
 export default function ReviewerDashboard() {
   const [activeFilter, setActiveFilter] = useState("ALL");
+  const [allCases, setAllCases] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-  const allCases = fetchAllCases();
+  useEffect(() => {
+    fetchAllCases()
+      .then((data) => {
+        setAllCases(data);
+        setLoading(false);
+      })
+      .catch((err) => {
+        setError(err.message);
+        setLoading(false);
+      });
+  }, []);
+
+  if (loading) return <div className="reviewer-dashboard"><h1>Reviewer Dashboard</h1><p>Loading...</p></div>;
+  if (error) return <div className="reviewer-dashboard"><h1>Reviewer Dashboard</h1><p>Error: {error}. Is the backend running?</p></div>;
+
   const filteredCases = allCases.filter((c) => {
     if (activeFilter === "PENDING") {
       return PENDING_STATUSES.includes(c.status);
@@ -62,8 +79,8 @@ export default function ReviewerDashboard() {
             {filteredCases.map((c) => (
               <tr key={c.id}>
                 <td>{c.id}</td>
-                <td>{c.student_name}</td>
-                <td>{c.course_requested}</td>
+                <td>{c.studentName}</td>
+                <td>{c.courseRequested}</td>
                 <td>
                   <StatusBadge status={c.status} />
                 </td>

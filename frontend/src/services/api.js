@@ -1,127 +1,165 @@
-// API layer -- currently hits the in-memory store.
-// Swap function bodies with fetch() calls when the backend is ready.
-import {
-  getAllCases,
-  getCasesByStudent,
-  getCaseById,
-  updateCaseStatus,
-  addLogEntry,
-  setReviewerComment,
-  addDocument,
-  createCase,
-  nextCaseId,
-} from "./store.js";
+// API layer -- calls the FastAPI backend.
+
+const API_BASE = "/api";
+
+function mapCaseOut(c) {
+  return {
+    id: c.caseId,
+    studentId: c.studentId,
+    studentName: c.studentName,
+    courseRequested: c.courseRequested,
+    status: c.status === "AI_RECOMMMENDATION" ? "AI_RECOMMENDATION" : c.status,
+    createdAt: c.createdAt,
+    updatedAt: c.updatedAt,
+  };
+}
+
+function mapDocument(d) {
+  return {
+    id: d.docId,
+    name: d.filename,
+    uploadedAt: d.createdAt,
+  };
+}
+
+function buildLogs(auditLog) {
+  const logs = [];
+  (auditLog?.extractionRuns || []).forEach((r) => {
+    logs.push({
+      timestamp: r.createdAt,
+      actor: "AGENT",
+      action: "EXTRACTION",
+      message: `Extraction run ${r.status}${r.errorMessage ? ": " + r.errorMessage : ""}`,
+    });
+  });
+  (auditLog?.decisionRuns || []).forEach((r) => {
+    logs.push({
+      timestamp: r.createdAt,
+      actor: "AGENT",
+      action: "DECISION",
+      message: `Decision run ${r.status}${r.errorMessage ? ": " + r.errorMessage : ""}`,
+    });
+  });
+  (auditLog?.reviewActions || []).forEach((a) => {
+    logs.push({
+      timestamp: a.createdAt,
+      actor: "REVIEWER",
+      action: a.action.toUpperCase(),
+      message: a.comment || `Reviewer action: ${a.action}`,
+    });
+  });
+  return logs;
+}
+
+function mapCaseDetail(data) {
+  const c = data.case;
+  const reviewActions = data.auditLog?.reviewActions || [];
+  const latestInfoRequest = [...reviewActions].reverse().find((a) => a.action === "request_info");
+  const latestDecision = [...reviewActions].reverse().find((a) => a.action === "approve" || a.action === "deny");
+
+  let displayStatus = c.status;
+  if (c.status === "REVIEWED" && latestDecision) {
+    displayStatus = latestDecision.action === "approve" ? "APPROVED" : "DENIED";
+  }
+  if (displayStatus === "AI_RECOMMMENDATION") displayStatus = "AI_RECOMMENDATION";
+
+  return {
+    id: c.caseId,
+    studentId: c.studentId,
+    studentName: c.studentName,
+    courseRequested: c.courseRequested,
+    status: displayStatus,
+    createdAt: c.createdAt,
+    updatedAt: c.updatedAt,
+    documents: (data.documents || []).map(mapDocument),
+    decisionPacket: data.decisionPacket,
+    logs: buildLogs(data.auditLog),
+    reviewerComment: latestInfoRequest?.comment || null,
+    reviewerDecision: latestDecision?.action || null,
+    reviewerDecisionComment: latestDecision?.comment || null,
+  };
+}
 
 // --- reads ---
 
-export function fetchStudentCases(studentId) {
-  return getCasesByStudent(studentId);
+export async function fetchStudentCases(studentId) {
+  const res = await fetch(`${API_BASE}/cases?studentId=${studentId}`);
+  if (!res.ok) throw new Error("Failed to fetch cases");
+  const data = await res.json();
+  return data.map(mapCaseOut);
 }
 
-export function fetchAllCases() {
-  return getAllCases();
+export async function fetchAllCases() {
+  const res = await fetch(`${API_BASE}/cases`);
+  if (!res.ok) throw new Error("Failed to fetch cases");
+  const data = await res.json();
+  return data.map(mapCaseOut);
 }
 
-export function fetchCase(caseId) {
-  return getCaseById(caseId);
+export async function fetchCase(caseId) {
+  const res = await fetch(`${API_BASE}/cases/${caseId}`);
+  if (!res.ok) throw new Error("Failed to fetch case");
+  const data = await res.json();
+  return mapCaseDetail(data);
 }
 
 // --- student actions ---
 
-export function submitNewCase({ studentId, studentName, courseRequested, files }) {
-  const now = new Date().toISOString();
-  const caseId = nextCaseId();
-
-  const documents = files.map((f, i) => ({
-    id: `doc-${caseId}-${i}`,
-    name: f.name,
-    uploaded_at: now,
-  }));
-
-  const newCase = {
-    id: caseId,
-    student_id: studentId,
-    student_name: studentName,
-    course_requested: courseRequested,
-    status: "UPLOADED",
-    documents,
-    logs: [
-      {
-        timestamp: now,
-        actor: "STUDENT",
-        action: "UPLOAD",
-        message: `Uploaded ${files.length} document(s) for ${courseRequested} equivalency request.`,
-      },
-    ],
-  };
-
-  createCase(newCase);
-  return newCase;
+export async function submitNewCase({ studentId, studentName, courseRequested, files }) {
+  const form = new FormData();
+  form.append("studentId", studentId);
+  if (studentName) form.append("studentName", studentName);
+  if (courseRequested) form.append("courseRequested", courseRequested);
+  files.forEach((f) => form.append("files", f));
+  const res = await fetch(`${API_BASE}/cases`, { method: "POST", body: form });
+  if (!res.ok) throw new Error("Failed to create case");
+  const data = await res.json();
+  return mapCaseOut(data);
 }
 
-export function submitAdditionalInfo(caseId, files) {
-  const now = new Date().toISOString();
-
-  files.forEach((f, i) => {
-    addDocument(caseId, {
-      id: `doc-${caseId}-extra-${i}`,
-      name: f.name,
-      uploaded_at: now,
-    });
-  });
-
-  addLogEntry(caseId, {
-    timestamp: now,
-    actor: "STUDENT",
-    action: "UPLOAD",
-    message: `Submitted ${files.length} additional document(s).`,
-  });
-
-  // backend would re-run extraction; for now just flip status
-  updateCaseStatus(caseId, "EXTRACTING");
-
-  addLogEntry(caseId, {
-    timestamp: new Date(Date.now() + 1).toISOString(),
-    actor: "AGENT",
-    action: "STATUS_CHANGE",
-    message: "Case status changed to EXTRACTING. Re-evaluating with new documents.",
-  });
-
-  return getCaseById(caseId);
+export async function submitAdditionalInfo(caseId, files) {
+  const form = new FormData();
+  files.forEach((f) => form.append("files", f));
+  const res = await fetch(`${API_BASE}/cases/${caseId}/documents`, { method: "POST", body: form });
+  if (!res.ok) throw new Error("Failed to upload documents");
+  const data = await res.json();
+  return mapCaseOut(data);
 }
 
 // --- reviewer actions ---
 
-export function submitReviewerDecision(caseId, action, comment) {
-  const now = new Date().toISOString();
-  const isRequestInfo = action === "REQUEST_INFO";
-
-  addLogEntry(caseId, {
-    timestamp: now,
-    actor: "REVIEWER",
-    action: action.toUpperCase(),
-    message: isRequestInfo
-      ? `Reviewer requested additional information. Comment: ${comment}`
-      : comment
-        ? `Reviewer ${action.toLowerCase()}d. Comment: ${comment}`
-        : `Reviewer ${action.toLowerCase()}d.`,
+export async function submitReviewerDecision(caseId, action, comment, reviewerId) {
+  const res = await fetch(`${API_BASE}/cases/${caseId}/review`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ action, comment, reviewerId }),
   });
+  if (!res.ok) throw new Error("Failed to submit review");
+  const data = await res.json();
+  return mapCaseOut(data);
+}
 
-  if (comment) {
-    setReviewerComment(caseId, comment);
-  }
+function mapDecisionResult(data) {
+  const r = data.resultJson || {};
+  return {
+    decisionRunId: data.decisionRunId,
+    createdAt: data.createdAt,
+    needsMoreInfo: data.needsMoreInfo,
+    missingFields: data.missingFields,
+    decision: r.decision,
+    equivalencyScore: r.equivalency_score,
+    confidence: r.confidence,
+    reasons: r.reasons || [],
+    gaps: r.gaps || [],
+    bridgePlan: r.bridge_plan || [],
+    missingInfoRequests: r.missing_info_requests || [],
+  };
+}
 
-  const newStatus = isRequestInfo ? "NEEDS_INFO" : "REVIEWED";
-  updateCaseStatus(caseId, newStatus);
-
-  addLogEntry(caseId, {
-    timestamp: new Date(Date.now() + 1).toISOString(),
-    actor: "AGENT",
-    action: "STATUS_CHANGE",
-    message: isRequestInfo
-      ? "Case status changed to NEEDS_INFO."
-      : "Case status changed to REVIEWED.",
-  });
-
-  return getCaseById(caseId);
+export async function fetchDecisionResult(caseId) {
+  const res = await fetch(`${API_BASE}/cases/${caseId}/decision/result/latest`);
+  if (res.status === 404) return null; // no decision yet
+  if (!res.ok) throw new Error("Failed to fetch decision result");
+  const data = await res.json();
+  return mapDecisionResult(data);
 }

@@ -77,6 +77,44 @@
   color: var(--color-text-muted);
 }
 
+/* decision banner */
+.student-case-view__decision-banner {
+  padding: 20px 24px;
+  border-radius: var(--radius-lg);
+  border: 1px solid;
+}
+
+.student-case-view__decision-banner--approve {
+  background: #f0fdf4;
+  border-color: var(--color-approve);
+}
+
+.student-case-view__decision-banner--deny {
+  background: #fef2f2;
+  border-color: var(--color-deny);
+}
+
+.student-case-view__decision-title {
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin: 0 0 8px 0;
+}
+
+.student-case-view__decision-banner--approve .student-case-view__decision-title {
+  color: #166534;
+}
+
+.student-case-view__decision-banner--deny .student-case-view__decision-title {
+  color: #991b1b;
+}
+
+.student-case-view__decision-comment {
+  margin: 0;
+  font-size: 0.95rem;
+  color: var(--color-text);
+  line-height: 1.5;
+}
+
 /* recommendation */
 .student-case-view__recommendation {
   display: flex;

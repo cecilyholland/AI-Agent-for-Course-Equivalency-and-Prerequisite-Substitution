@@ -8,6 +8,8 @@ const statusColorMap = {
   NEEDS_INFO: "var(--color-needs-info)",
   REVIEW_PENDING: "var(--color-pending)",
   REVIEWED: "var(--color-reviewed)",
+  APPROVED: "var(--color-approve)",
+  DENIED: "var(--color-deny)",
 };
 
 function StatusBadge({ status }) {
