@@ -1,0 +1,6 @@
+{
+  "facts": [
+    {"factType":"course","factKey":"credits","factValue":"3","unknown":false},
+    {"factType":"course","factKey":"outcomes","factJson":{"items":["Design REST APIs","Model relational databases"]},"unknown":false}
+  ]
+}

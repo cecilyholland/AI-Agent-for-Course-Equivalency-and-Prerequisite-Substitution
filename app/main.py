@@ -1,5 +1,3 @@
-# main.py
-
 from __future__ import annotations
 
 import hashlib
@@ -7,6 +5,7 @@ import os
 import uuid
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
+import json
 
 from fastapi import (
     FastAPI,
@@ -29,6 +28,7 @@ from app.models import (
     ReviewAction,
     DecisionResult,
     GroundedEvidence,
+    Reviewer,
 )
 from app.schemas import (
     CaseOut,
@@ -39,6 +39,8 @@ from app.schemas import (
     ExtractionStartOut,
     ExtractionStartDocOut,
     DecisionResultIn,
+    ReviewerCreateIn,
+    ReviewerOut,
 )
 import httpx
 from decision_engine.contracts import (
@@ -131,7 +133,7 @@ def case_to_out(r: Request) -> CaseOut:
         caseId=str(r.request_id),
         studentId=r.student_id,
         studentName=r.student_name,
-        courseRequested=r.course_requested,
+        assignedReviewerId=str(r.assigned_reviewer_id) if r.assigned_reviewer_id else None,        courseRequested=r.course_requested,
         status=to_frontend_status(r.status),
         createdAt=r.created_at,
         updatedAt=r.updated_at,
@@ -250,37 +252,107 @@ def build_audit_log(db: Session, request_id: str) -> Dict[str, Any]:
 
 
 # FRONTEND ROUTES
-
-@app.get("/api/cases", response_model=List[CaseOut])
-def list_cases(
-    studentId: Optional[str] = Query(default=None),
+@app.post("/api/cases", response_model=CaseOut)
+def create_case(
+    studentId: str = Form(...),
+    studentName: Optional[str] = Form(None),
+    courseRequested: Optional[str] = Form(None),
+    files: List[UploadFile] = File(...),
     db: Session = Depends(get_db),
 ):
-    q = db.query(Request)
-    if studentId:
-        q = q.filter(Request.student_id == studentId)
-    cases = q.order_by(Request.updated_at.desc()).all()
-    return [case_to_out(c) for c in cases]
+    req = Request(
+        student_id=studentId,
+        student_name=studentName,
+        course_requested=courseRequested,
+        status="uploaded",
+        created_at=now_utc(),
+        updated_at=now_utc(),
+    )
+    db.add(req)
+    db.commit()
+    db.refresh(req)
+
+    assigned = db.query(Reviewer).order_by(text("RANDOM()")).first()
+    if assigned:
+        req.assigned_reviewer_id = assigned.reviewer_id
+        req.updated_at = now_utc()
+
+    for f in files:
+        meta = save_upload(f)
+        db.add(
+            Document(
+                request_id=req.request_id,
+                filename=meta["filename"],
+                content_type=meta["content_type"],
+                sha256=meta["sha256"],
+                storage_uri=meta["storage_uri"],
+                size_bytes=meta["size_bytes"],
+                is_active=True,
+                created_at=now_utc(),
+            )
+        )
+
+    db.add(
+        ExtractionRun(
+            request_id=req.request_id,
+            status="queued",
+            created_at=now_utc(),
+        )
+    )
+
+    db.commit()
+    return case_to_out(req)
 
 
 @app.get("/api/cases/{caseId}", response_model=CaseDetailOut)
 def get_case(caseId: str, db: Session = Depends(get_db)):
-    req = db.query(Request).filter(Request.request_id == caseId).first()
+    try:
+        case_uuid = uuid.UUID(caseId)
+    except ValueError:
+        raise HTTPException(status_code=422, detail="Invalid caseId (must be a UUID)")
+
+    req = db.query(Request).filter(Request.request_id == case_uuid).first()
     if not req:
         raise HTTPException(status_code=404, detail="Case not found")
 
     docs = (
         db.query(Document)
-        .filter(Document.request_id == caseId)
+        .filter(Document.request_id == case_uuid)
         .order_by(Document.created_at.asc())
         .all()
     )
 
+    evidence_packet = build_decision_packet(db, case_uuid)
+
+    latest_decision_run = (
+        db.query(DecisionRun)
+        .filter(DecisionRun.request_id == case_uuid)
+        .order_by(DecisionRun.created_at.desc())
+        .first()
+    )
+
+    decision_result_obj = None
+    if latest_decision_run:
+        res = (
+            db.query(DecisionResult)
+            .filter(DecisionResult.decision_run_id == latest_decision_run.decision_run_id)
+            .first()
+        )
+        if res:
+            decision_result_obj = {
+                "decisionRunId": str(latest_decision_run.decision_run_id),
+                "createdAt": res.created_at,
+                "needsMoreInfo": bool(res.needs_more_info),
+                "missingFields": res.missing_fields,
+                "resultJson": res.result_json,
+            }
+
     return CaseDetailOut(
         case=case_to_out(req),
         documents=[doc_to_out(d) for d in docs],
-        decisionPacket=build_decision_packet(db, caseId),
-        auditLog=build_audit_log(db, caseId),
+        evidencePacket=evidence_packet,
+        decisionResult=decision_result_obj,
+        auditLog=build_audit_log(db, case_uuid),
     )
 
 
@@ -372,21 +444,35 @@ def add_documents(
     return case_to_out(req)
 
 
-# ✅ UPDATED: Link review to latest decision_run_id (if present)
+# links review to latest decision_run_id (if present)
 @app.post("/api/cases/{caseId}/review", response_model=CaseOut)
 def submit_review(
     caseId: str,
     body: ReviewIn,
     db: Session = Depends(get_db),
 ):
-    req = db.query(Request).filter(Request.request_id == caseId).first()
+    # Parse UUID to match UUID(as_uuid=True) columns
+    try:
+        case_uuid = uuid.UUID(caseId)
+    except ValueError:
+        raise HTTPException(status_code=422, detail="Invalid caseId (must be a UUID)")
+
+    req = db.query(Request).filter(Request.request_id == case_uuid).first()
     if not req:
         raise HTTPException(status_code=404, detail="Case not found")
+
+    reviewer = db.query(Reviewer).filter(Reviewer.reviewer_id == body.reviewerId).first()
+    if not reviewer:
+        raise HTTPException(status_code=404, detail="Reviewer not found")
+
+    if req.assigned_reviewer_id and req.assigned_reviewer_id != body.reviewerId:
+        raise HTTPException(status_code=403, detail="Reviewer not assigned to this case")
 
     action_map = {
         "APPROVE": "approve",
         "DENY": "deny",
         "REQUEST_INFO": "request_info",
+        "NEEDS_MORE_INFO": "request_info",  # alias for frontend wording
     }
 
     action_db = action_map.get(body.action)
@@ -395,14 +481,14 @@ def submit_review(
 
     latest_decision_run = (
         db.query(DecisionRun)
-        .filter(DecisionRun.request_id == caseId)
+        .filter(DecisionRun.request_id == case_uuid)
         .order_by(DecisionRun.created_at.desc())
         .first()
     )
 
     db.add(
         ReviewAction(
-            request_id=caseId,
+            request_id=case_uuid,
             reviewer_id=body.reviewerId,
             action=action_db,
             comment=body.comment,
@@ -411,7 +497,7 @@ def submit_review(
         )
     )
 
-    if body.action == "REQUEST_INFO":
+    if body.action in ("REQUEST_INFO", "NEEDS_MORE_INFO"):
         req.status = "needs_info"
     else:
         req.status = "reviewed"
@@ -479,7 +565,12 @@ def complete_extraction(caseId: str, body: ExtractionCompleteIn, db: Session = D
     except ValueError:
         raise HTTPException(status_code=422, detail="Invalid caseId (must be a UUID)")
 
-    req = db.query(Request).filter(Request.request_id == case_uuid).first()
+    req = (
+        db.query(Request)
+        .filter(Request.request_id == case_uuid)
+        .with_for_update()
+        .first()
+    )
     if not req:
         raise HTTPException(status_code=404, detail="Case not found")
 
@@ -523,19 +614,15 @@ def complete_extraction(caseId: str, body: ExtractionCompleteIn, db: Session = D
         db.add(ev)
         inserted_evidence.append(ev)
 
-    # IMPORTANT: ensure evidence is visible to queries in this same request (autoflush is off)
     db.flush()
 
     # moving forward in workflow
-        # moving forward in workflow
     req.status = "ready_for_decision"
     req.updated_at = now_utc()
 
-    # --- NEW: Auto-run decision engine (Mode A) after extraction completes ---
-    # Load the evidence we just inserted (scoped to this extraction_run_id)
     evidence_rows = inserted_evidence
 
-    # Create a decision_run record first (audit)
+    # create a decision_run record first
     decision_run = DecisionRun(
         request_id=req.request_id,
         status="running",
@@ -549,36 +636,92 @@ def complete_extraction(caseId: str, body: ExtractionCompleteIn, db: Session = D
 
     try:
         packet = build_contracts_packet(req, evidence_rows)
+        packet_hash = compute_packet_hash(packet)
+
+        # prevent duplicate completed decision runs for identical packet inputs
+        existing_completed = (
+            db.query(DecisionRun)
+            .filter(
+                DecisionRun.request_id == req.request_id,
+                DecisionRun.status == "completed",
+            )
+            .order_by(DecisionRun.created_at.desc())
+            .first()
+        )
+
+        if existing_completed and isinstance(existing_completed.decision_inputs, dict):
+            prev_hash = existing_completed.decision_inputs.get("inputs_hash")
+            prev_extraction_run_id = existing_completed.decision_inputs.get("extraction_run_id")
+            if prev_hash == packet_hash and prev_extraction_run_id == str(run.extraction_run_id):
+                decision_run.status = "completed"
+                decision_run.finished_at = now_utc()
+                db.commit()
+                return {
+                    "message": "Extraction completed (decision already up-to-date)",
+                    "extractionRunId": str(run.extraction_run_id),
+                    "factsInserted": len(body.facts),
+                    "decisionRunId": str(existing_completed.decision_run_id),
+                    "caseStatus": req.status,
+                }
 
         # store the exact packet used (JSONB) for audit/repro
         decision_run.decision_inputs = packet.model_dump()
+        decision_run.decision_inputs["inputs_hash"] = packet_hash
+        decision_run.decision_inputs["extraction_run_id"] = str(run.extraction_run_id)
 
-        # run engine locally (Mode A)
-        engine_result = decide(packet)
+        missing = validate_packet_or_raise(packet)
+        if missing:
+            synthetic_result_json = {
+                "decision": "NEEDS_MORE_INFO",
+                "equivalency_score": 0,
+                "confidence": "LOW",
+                "gaps": [{"text": m} for m in missing],
+                "missing_info_requests": missing,
+            }
 
-        # persist decision result (1:1 with decision_runs)
-        needs_more_info = (engine_result.decision.value == "NEEDS_MORE_INFO")
-        missing_fields = (
-            {"missing_info_requests": engine_result.missing_info_requests}
-            if engine_result.missing_info_requests
-            else None
-        )
-
-        db.add(
-            DecisionResult(
-                decision_run_id=decision_run.decision_run_id,
-                result_json=engine_result.model_dump(),
-                needs_more_info=needs_more_info,
-                missing_fields=missing_fields,
+            db.add(
+                DecisionResult(
+                    decision_run_id=decision_run.decision_run_id,
+                    result_json=synthetic_result_json,
+                    needs_more_info=True,
+                    missing_fields={"missing_info_requests": missing},
+                )
             )
-        )
 
-        decision_run.status = "completed"
-        decision_run.finished_at = now_utc()
+            decision_run.status = "completed"
+            decision_run.finished_at = now_utc()
 
-        # advance workflow status (mirrors /decision/result behavior)
-        req.status = "needs_info" if needs_more_info else "ai_recommendation"
-        req.updated_at = now_utc()
+            # advance workflow status (mirrors /decision/result behavior)
+            req.status = "needs_info"
+            req.updated_at = now_utc()
+
+        else:
+            # run engine locally (Mode A)
+            engine_result = decide(packet)
+
+            # persist decision result (1:1 with decision_runs)
+            needs_more_info = (engine_result.decision.value == "NEEDS_MORE_INFO")
+            missing_fields = (
+                {"missing_info_requests": engine_result.missing_info_requests}
+                if engine_result.missing_info_requests
+                else None
+            )
+
+            db.add(
+                DecisionResult(
+                    decision_run_id=decision_run.decision_run_id,
+                    result_json=engine_result.model_dump(),
+                    needs_more_info=needs_more_info,
+                    missing_fields=missing_fields,
+                )
+            )
+
+            decision_run.status = "completed"
+            decision_run.finished_at = now_utc()
+
+            # advance workflow status (mirrors /decision/result behavior)
+            req.status = "needs_info" if needs_more_info else "ai_recommendation"
+            req.updated_at = now_utc()
 
     except Exception as ex:
         decision_run.status = "failed"
@@ -598,7 +741,6 @@ def complete_extraction(caseId: str, body: ExtractionCompleteIn, db: Session = D
         "decisionRunId": str(decision_run.decision_run_id),
         "caseStatus": req.status,
     }
-
 
 def build_decision_inputs(case: Request, docs: list[Document], evidence: list[GroundedEvidence]) -> dict:
     return {
@@ -714,77 +856,81 @@ def decision_run(caseId: str, db: Session = Depends(get_db)):
     }
 
 
-@app.get("/api/cases/{caseId}/decision/latest")
-def decision_latest(caseId: str, db: Session = Depends(get_db)):
+@app.get("/api/cases/{caseId}/decision/result/latest")
+def get_latest_decision_result(caseId: str, db: Session = Depends(get_db)):
     try:
         case_uuid = uuid.UUID(caseId)
     except ValueError:
-        raise HTTPException(status_code=422, detail="Invalid caseId (must be UUID)")
+        raise HTTPException(status_code=422, detail="Invalid caseId (must be a UUID)")
 
-    run = (
+    req = db.query(Request).filter(Request.request_id == case_uuid).first()
+    if not req:
+        raise HTTPException(status_code=404, detail="Case not found")
+
+    dr = (
         db.query(DecisionRun)
         .filter(DecisionRun.request_id == case_uuid)
         .order_by(DecisionRun.created_at.desc())
         .first()
     )
-    if not run:
-        raise HTTPException(status_code=404, detail="No decision runs found for this case")
+    if not dr:
+        raise HTTPException(status_code=404, detail="No decision run found")
 
-    return {
-        "caseId": str(case_uuid),
-        "decisionRunId": str(run.decision_run_id),
-        "status": run.status,
-        "createdAt": run.created_at.isoformat() if run.created_at else None,
-        "decisionInputs": run.decision_inputs,
-    }
-
-
-@app.get("/api/cases/{caseId}/status")
-def case_status_summary(caseId: str, db: Session = Depends(get_db)):
-    try:
-        case_uuid = uuid.UUID(caseId)
-    except ValueError:
-        raise HTTPException(status_code=422, detail="Invalid caseId")
-
-    case = db.query(Request).filter(Request.request_id == case_uuid).first()
-    if not case:
-        raise HTTPException(status_code=404, detail="Case not found")
-
-    extraction_completed = (
-        db.query(ExtractionRun)
-        .filter(
-            ExtractionRun.request_id == case_uuid,
-            ExtractionRun.status == "completed",
-        )
-        .count()
-        > 0
+    res = (
+        db.query(DecisionResult)
+        .filter(DecisionResult.decision_run_id == dr.decision_run_id)
+        .first()
     )
+    if not res:
+        raise HTTPException(status_code=404, detail="No decision result found for latest decision run")
 
-    decision_inputs_exist = (
-        db.query(DecisionRun)
-        .filter(
-            DecisionRun.request_id == case_uuid,
-            DecisionRun.status == "completed",
-        )
-        .count()
-        > 0
-    )
+    result_json = res.result_json or {}
+    ai_decision = result_json.get("decision")
 
-    review_exists = (
+    display = ai_decision
+    bridge_plan = result_json.get("bridge_plan")
+    gaps = result_json.get("gaps") or []
+    has_fixable_gap = any(isinstance(g, dict) and g.get("severity") == "FIXABLE" for g in gaps)
+
+    if ai_decision == "APPROVE" and (bridge_plan or has_fixable_gap):
+        display = "APPROVE_WITH_BRIDGE"
+
+    latest_review = (
         db.query(ReviewAction)
         .filter(ReviewAction.request_id == case_uuid)
-        .count()
-        > 0
+        .order_by(ReviewAction.created_at.desc())
+        .first()
     )
+
+    # DB stores: approve / deny / request_info
+    review_action_api = None
+    if latest_review:
+        reverse_action_map = {
+            "approve": "APPROVE",
+            "deny": "DENY",
+            "request_info": "NEEDS_MORE_INFO",  # frontend wording
+        }
+        review_action_api = {
+            "reviewActionId": str(latest_review.review_action_id),
+            "reviewerId": latest_review.reviewer_id,
+            "reviewerDecision": reverse_action_map.get(latest_review.action, latest_review.action),
+            "comment": latest_review.comment,
+            "createdAt": latest_review.created_at,
+            "decisionRunId": str(latest_review.decision_run_id) if latest_review.decision_run_id else None,
+        }
 
     return {
         "caseId": str(case_uuid),
-        "caseStatus": case.status,
-        "extractionCompleted": extraction_completed,
-        "decisionInputsBuilt": decision_inputs_exist,
-        "reviewCompleted": review_exists,
-        "createdAt": case.created_at.isoformat() if case.created_at else None,
-        "updatedAt": case.updated_at.isoformat() if case.updated_at else None,
+        "caseStatus": req.status,                 # ai_recommendation / needs_info / reviewed
+        "decisionRunId": str(dr.decision_run_id),
+        "decisionStatus": dr.status,              # completed/failed/running
+        "aiRecommendation": ai_decision,          # raw engine decision
+        "aiRecommendationDisplay": display,       # friendly display label
+        "needsMoreInfo": bool(res.needs_more_info),
+        "resultJson": result_json,
+        "decisionInputs": dr.decision_inputs,
+        "createdAt": dr.created_at,
+        "latestReview": review_action_api,       
     }
 
 
@@ -848,40 +994,7 @@ def store_decision_result(caseId: str, body: DecisionResultIn, db: Session = Dep
     }
 
 
-@app.get("/api/cases/{caseId}/decision/result/latest")
-def get_latest_decision_result(caseId: str, db: Session = Depends(get_db)):
-    try:
-        case_uuid = uuid.UUID(caseId)
-    except ValueError:
-        raise HTTPException(status_code=422, detail="Invalid caseId (must be UUID)")
-
-    latest_run = (
-        db.query(DecisionRun)
-        .filter(DecisionRun.request_id == case_uuid)
-        .order_by(DecisionRun.created_at.desc())
-        .first()
-    )
-    if not latest_run:
-        raise HTTPException(status_code=404, detail="No decision runs found for this case")
-
-    res = (
-        db.query(DecisionResult)
-        .filter(DecisionResult.decision_run_id == latest_run.decision_run_id)
-        .first()
-    )
-    if not res:
-        raise HTTPException(status_code=404, detail="No decision result found for latest decision run")
-
-    return {
-        "caseId": str(case_uuid),
-        "decisionRunId": str(latest_run.decision_run_id),
-        "createdAt": res.created_at.isoformat() if res.created_at else None,
-        "needsMoreInfo": res.needs_more_info,
-        "missingFields": res.missing_fields,
-        "resultJson": res.result_json,
-    }
-
-# --- Decision Engine (Mode A) mapping helpers ---
+# Decision Engine 
 
 def _first_non_empty(*vals):
     for v in vals:
@@ -894,12 +1007,6 @@ def _first_non_empty(*vals):
 
 
 def map_evidence_rows_to_course_evidence(evidence_rows: list[GroundedEvidence]) -> CourseEvidence:
-    """
-    Best-effort mapper from grounded_evidence to Ali's CourseEvidence contract.
-    Uses fact_key / fact_type naming conventions.
-    Citations left empty for now (Cecily chunk-linking later).
-    """
-
     # Defaults: unknown unless we find a value
     fields = {
         "credits": EvidenceField(value=None, unknown=True, citations=[]),
@@ -964,20 +1071,21 @@ def map_evidence_rows_to_course_evidence(evidence_rows: list[GroundedEvidence]) 
 
     return CourseEvidence(**fields)
 
-
+# build decision inputs packet from db
+# TO DO: hard coded the course needs to be updated 
 def build_contracts_packet(case: Request, evidence_rows: list[GroundedEvidence]) -> DecisionInputsPacket:
-    """
-    Build Ali's DecisionInputsPacket from our DB evidence.
-    Target course profile is hardcoded for demo (replace later with DB-backed profiles).
-    """
     source = map_evidence_rows_to_course_evidence(evidence_rows)
 
     # Demo target profile (replace later with course profile config)
     target = TargetCourseProfile(
         target_credits=3,
         target_lab_required=False,
-        required_topics=[],
-        required_outcomes=[],
+        required_topics=["trees", "graphs", "hashing", "heaps"],
+        required_outcomes=[
+            "Analyze time complexity",
+            "Implement common data structures",
+            "Design balanced trees",
+        ],
     )
 
     policy = PolicyConfig()  # uses defaults from contracts.py
@@ -987,4 +1095,94 @@ def build_contracts_packet(case: Request, evidence_rows: list[GroundedEvidence])
         source_course=source,
         target_course=target,
         policy=policy,
+    )
+
+def validate_packet_or_raise(packet: DecisionInputsPacket) -> list[str]:
+    missing: list[str] = []
+
+    src = packet.source_course
+
+    # credits required
+    if src.credits.unknown or src.credits.value in (None, "", []):
+        missing.append("Missing source course credits.")
+
+    # topics or outcomes required
+    topics_missing = src.topics.unknown or not src.topics.value
+    outcomes_missing = src.outcomes.unknown or not src.outcomes.value
+    if topics_missing and outcomes_missing:
+        missing.append("Missing source course topics and learning outcomes.")
+
+    return missing
+
+def stable_json_dumps(obj: Any) -> str:
+    return json.dumps(obj, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
+
+
+def sha256_str(s: str) -> str:
+    return hashlib.sha256(s.encode("utf-8")).hexdigest()
+
+
+def compute_packet_hash(packet: DecisionInputsPacket) -> str:
+    # model_dump gives a stable structure; stable_json_dumps makes ordering deterministic
+    payload = packet.model_dump()
+    return sha256_str(stable_json_dumps(payload))
+
+def generate_decision_packet(engine_result) -> dict:
+    decision = engine_result.decision.value
+
+    if decision == "APPROVE":
+        why = "The source course meets the credit and content requirements under the current policy."
+    elif decision == "BRIDGE":
+        why = "The source course is close to equivalent but requires bridging requirements."
+    elif decision == "DENY":
+        why = "The source course does not meet the minimum equivalency threshold under the current policy."
+    elif decision == "NEEDS_MORE_INFO":
+        why = "The request is missing required evidence needed to evaluate equivalency."
+    else:
+        why = "No recommendation available."
+
+    return {
+        "decision": decision,
+        "equivalency_score": engine_result.equivalency_score,
+        "confidence": engine_result.confidence.value,
+        "why": why,
+        "gaps": [
+            g.model_dump() if hasattr(g, "model_dump") else g
+            for g in (engine_result.gaps or [])
+        ],
+        "missing_info_requests": list(engine_result.missing_info_requests or []),
+        "citations": [],  # Cecily will populate later via grounding
+    }
+
+@app.post("/api/reviewers", response_model=ReviewerOut)
+def create_reviewer(body: ReviewerCreateIn, db: Session = Depends(get_db)):
+    r = Reviewer(
+        reviewer_name=body.reviewerName,
+        created_at=now_utc(),
+    )
+    db.add(r)
+    db.commit()
+    db.refresh(r)
+
+    return {
+        "reviewerId": str(r.reviewer_id),
+        "reviewerName": r.reviewer_name,
+        "createdAt": r.created_at,
+    }
+
+@app.get("/api/reviewers/{reviewerId}", response_model=ReviewerOut)
+def get_reviewer(reviewerId: str, db: Session = Depends(get_db)):
+    try:
+        reviewer_uuid = uuid.UUID(reviewerId)
+    except ValueError:
+        raise HTTPException(status_code=422, detail="Invalid reviewerId (must be a UUID)")
+
+    r = db.query(Reviewer).filter(Reviewer.reviewer_id == reviewer_uuid).first()
+    if not r:
+        raise HTTPException(status_code=404, detail="Reviewer not found")
+
+    return ReviewerOut(
+        reviewerId=str(r.reviewer_id),
+        reviewerName=getattr(r, "reviewer_name", None),
+        createdAt=r.created_at,
     )

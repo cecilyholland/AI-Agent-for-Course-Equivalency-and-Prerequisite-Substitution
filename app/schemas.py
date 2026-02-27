@@ -1,14 +1,26 @@
-# schemas.py
-
 from datetime import datetime
 from typing import Optional, List, Dict, Literal, Any
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
+from uuid import UUID
 
+class ReviewIn(BaseModel):
+    action: Literal["APPROVE", "DENY", "REQUEST_INFO", "NEEDS_MORE_INFO"]
+    comment: str = Field(min_length=1)
+    reviewerId: UUID
+
+class ReviewerCreateIn(BaseModel):
+    reviewerName: Optional[str] = None
+
+class ReviewerOut(BaseModel):
+    reviewerId: str
+    reviewerName: Optional[str]
+    createdAt: datetime
 
 class CaseOut(BaseModel):
     caseId: str
     studentId: str
     studentName: Optional[str]
+    assignedReviewerId: str | None = None
     courseRequested: Optional[str]
     status: str
     createdAt: datetime
@@ -22,13 +34,6 @@ class DocumentOut(BaseModel):
     storageUri: str
     createdAt: datetime
     isActive: bool
-
-
-class ReviewIn(BaseModel):
-    action: Literal["APPROVE", "DENY", "REQUEST_INFO"]
-    comment: str
-    reviewerId: str
-
 
 
 class CaseDetailOut(BaseModel):
