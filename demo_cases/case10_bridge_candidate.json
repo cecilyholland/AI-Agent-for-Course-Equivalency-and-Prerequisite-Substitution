@@ -1,0 +1,7 @@
+{
+  "facts": [
+    {"factType":"course","factKey":"credits","factValue":"2","unknown":false},
+    {"factType":"course","factKey":"topics","factJson":{"items":["loops","variables","basic algorithms"]},"unknown":false},
+    {"factType":"course","factKey":"outcomes","factJson":{"items":["Write basic Python programs"]},"unknown":false}
+  ]
+}

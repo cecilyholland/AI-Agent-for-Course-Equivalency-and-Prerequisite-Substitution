@@ -1,0 +1,1248 @@
+[
+  {
+    "payload": "case01_approve_full.json",
+    "caseId": "c2e50fd5-1930-43ff-8b9f-725257517a56",
+    "extractionRunId": "aab21037-3fae-4b99-b9d6-7a14f9af14c9",
+    "extractionCompleteResponse": {
+      "message": "Extraction completed (decision engine triggered)",
+      "extractionRunId": "aab21037-3fae-4b99-b9d6-7a14f9af14c9",
+      "factsInserted": 7,
+      "decisionRunId": "83e9eb1b-f815-4908-afe4-a2889f0b2a8f",
+      "caseStatus": "ai_recommendation"
+    },
+    "latestDecisionResponse": {
+      "caseId": "c2e50fd5-1930-43ff-8b9f-725257517a56",
+      "caseStatus": "ai_recommendation",
+      "decisionRunId": "83e9eb1b-f815-4908-afe4-a2889f0b2a8f",
+      "decisionStatus": "completed",
+      "aiRecommendation": "APPROVE",
+      "aiRecommendationDisplay": "APPROVE",
+      "needsMoreInfo": false,
+      "resultJson": {
+        "gaps": [],
+        "reasons": [
+          {
+            "text": "Credits match (3 credits).",
+            "citations": []
+          },
+          {
+            "text": "Matched 3/4 required topics.",
+            "citations": []
+          },
+          {
+            "text": "Matched 2/3 required learning outcomes.",
+            "citations": []
+          }
+        ],
+        "decision": "APPROVE",
+        "confidence": "MEDIUM",
+        "bridge_plan": [],
+        "equivalency_score": 80,
+        "missing_info_requests": []
+      },
+      "decisionInputs": {
+        "policy": {
+          "bridge_threshold": 65,
+          "approve_threshold": 80,
+          "require_lab_parity": true,
+          "require_credits_known": true,
+          "require_topics_or_outcomes": true
+        },
+        "case_id": "c2e50fd5-1930-43ff-8b9f-725257517a56",
+        "inputs_hash": "e569f616c725835877ba1d0c16de6a59c0080551c14b40352747e4fd56736008",
+        "source_course": {
+          "topics": {
+            "value": [
+              "trees",
+              "graphs",
+              "hashing"
+            ],
+            "unknown": false,
+            "citations": []
+          },
+          "credits": {
+            "value": "3",
+            "unknown": false,
+            "citations": []
+          },
+          "outcomes": {
+            "value": [
+              "Implement common data structures",
+              "Analyze time complexity"
+            ],
+            "unknown": false,
+            "citations": []
+          },
+          "assessments": {
+            "value": [
+              "Midterm",
+              "Final",
+              "Programming assignments"
+            ],
+            "unknown": false,
+            "citations": []
+          },
+          "lab_component": {
+            "value": false,
+            "unknown": false,
+            "citations": []
+          },
+          "contact_hours_lab": {
+            "value": "0",
+            "unknown": false,
+            "citations": []
+          },
+          "contact_hours_lecture": {
+            "value": "45",
+            "unknown": false,
+            "citations": []
+          }
+        },
+        "target_course": {
+          "target_credits": 3,
+          "required_topics": [
+            "trees",
+            "graphs",
+            "hashing",
+            "heaps"
+          ],
+          "required_outcomes": [
+            "Analyze time complexity",
+            "Implement common data structures",
+            "Design balanced trees"
+          ],
+          "target_lab_required": false
+        },
+        "extraction_run_id": "aab21037-3fae-4b99-b9d6-7a14f9af14c9"
+      },
+      "createdAt": "2026-02-27T11:29:43.470304-05:00",
+      "latestReview": null
+    }
+  },
+  {
+    "payload": "case02_needs_info_missing_credits.json",
+    "caseId": "1db28d84-eaed-4907-baca-d51302a042bb",
+    "extractionRunId": "1985ffef-bc70-427b-b964-00874c648642",
+    "extractionCompleteResponse": {
+      "message": "Extraction completed (decision engine triggered)",
+      "extractionRunId": "1985ffef-bc70-427b-b964-00874c648642",
+      "factsInserted": 3,
+      "decisionRunId": "38e09e7b-b4e1-49b9-94e0-ebd09f40b2e5",
+      "caseStatus": "needs_info"
+    },
+    "latestDecisionResponse": {
+      "caseId": "1db28d84-eaed-4907-baca-d51302a042bb",
+      "caseStatus": "needs_info",
+      "decisionRunId": "38e09e7b-b4e1-49b9-94e0-ebd09f40b2e5",
+      "decisionStatus": "completed",
+      "aiRecommendation": "NEEDS_MORE_INFO",
+      "aiRecommendationDisplay": "NEEDS_MORE_INFO",
+      "needsMoreInfo": true,
+      "resultJson": {
+        "gaps": [
+          {
+            "text": "Missing source course credits."
+          }
+        ],
+        "decision": "NEEDS_MORE_INFO",
+        "confidence": "LOW",
+        "equivalency_score": 0,
+        "missing_info_requests": [
+          "Missing source course credits."
+        ]
+      },
+      "decisionInputs": {
+        "policy": {
+          "bridge_threshold": 65,
+          "approve_threshold": 80,
+          "require_lab_parity": true,
+          "require_credits_known": true,
+          "require_topics_or_outcomes": true
+        },
+        "case_id": "1db28d84-eaed-4907-baca-d51302a042bb",
+        "inputs_hash": "ae055bd40e658f77df00998286a368cfd6ee226580041b6ab810ebc65584663e",
+        "source_course": {
+          "topics": {
+            "value": [
+              "recursion",
+              "functional programming"
+            ],
+            "unknown": false,
+            "citations": []
+          },
+          "credits": {
+            "value": null,
+            "unknown": true,
+            "citations": []
+          },
+          "outcomes": {
+            "value": [
+              "Write recursive solutions"
+            ],
+            "unknown": false,
+            "citations": []
+          },
+          "assessments": {
+            "value": null,
+            "unknown": true,
+            "citations": []
+          },
+          "lab_component": {
+            "value": null,
+            "unknown": true,
+            "citations": []
+          },
+          "contact_hours_lab": {
+            "value": null,
+            "unknown": true,
+            "citations": []
+          },
+          "contact_hours_lecture": {
+            "value": null,
+            "unknown": true,
+            "citations": []
+          }
+        },
+        "target_course": {
+          "target_credits": 3,
+          "required_topics": [
+            "trees",
+            "graphs",
+            "hashing",
+            "heaps"
+          ],
+          "required_outcomes": [
+            "Analyze time complexity",
+            "Implement common data structures",
+            "Design balanced trees"
+          ],
+          "target_lab_required": false
+        },
+        "extraction_run_id": "1985ffef-bc70-427b-b964-00874c648642"
+      },
+      "createdAt": "2026-02-27T11:29:43.497142-05:00",
+      "latestReview": null
+    }
+  },
+  {
+    "payload": "case03_needs_info_missing_topics_and_outcomes.json",
+    "caseId": "98e5a327-2297-4b11-ad1c-353074f3bde9",
+    "extractionRunId": "fc2bdea5-3bfd-4239-a4c3-db7b912123d5",
+    "extractionCompleteResponse": {
+      "message": "Extraction completed (decision engine triggered)",
+      "extractionRunId": "fc2bdea5-3bfd-4239-a4c3-db7b912123d5",
+      "factsInserted": 3,
+      "decisionRunId": "778a1b2b-9e85-4d8c-92ee-9df328774674",
+      "caseStatus": "needs_info"
+    },
+    "latestDecisionResponse": {
+      "caseId": "98e5a327-2297-4b11-ad1c-353074f3bde9",
+      "caseStatus": "needs_info",
+      "decisionRunId": "778a1b2b-9e85-4d8c-92ee-9df328774674",
+      "decisionStatus": "completed",
+      "aiRecommendation": "NEEDS_MORE_INFO",
+      "aiRecommendationDisplay": "NEEDS_MORE_INFO",
+      "needsMoreInfo": true,
+      "resultJson": {
+        "gaps": [
+          {
+            "text": "Missing source course topics and learning outcomes."
+          }
+        ],
+        "decision": "NEEDS_MORE_INFO",
+        "confidence": "LOW",
+        "equivalency_score": 0,
+        "missing_info_requests": [
+          "Missing source course topics and learning outcomes."
+        ]
+      },
+      "decisionInputs": {
+        "policy": {
+          "bridge_threshold": 65,
+          "approve_threshold": 80,
+          "require_lab_parity": true,
+          "require_credits_known": true,
+          "require_topics_or_outcomes": true
+        },
+        "case_id": "98e5a327-2297-4b11-ad1c-353074f3bde9",
+        "inputs_hash": "91ae80efbf788103f4944c7d21ad9219b003ab9ee59b2be3f8410a0702345c55",
+        "source_course": {
+          "topics": {
+            "value": null,
+            "unknown": true,
+            "citations": []
+          },
+          "credits": {
+            "value": "3",
+            "unknown": false,
+            "citations": []
+          },
+          "outcomes": {
+            "value": null,
+            "unknown": true,
+            "citations": []
+          },
+          "assessments": {
+            "value": null,
+            "unknown": true,
+            "citations": []
+          },
+          "lab_component": {
+            "value": null,
+            "unknown": true,
+            "citations": []
+          },
+          "contact_hours_lab": {
+            "value": null,
+            "unknown": true,
+            "citations": []
+          },
+          "contact_hours_lecture": {
+            "value": null,
+            "unknown": true,
+            "citations": []
+          }
+        },
+        "target_course": {
+          "target_credits": 3,
+          "required_topics": [
+            "trees",
+            "graphs",
+            "hashing",
+            "heaps"
+          ],
+          "required_outcomes": [
+            "Analyze time complexity",
+            "Implement common data structures",
+            "Design balanced trees"
+          ],
+          "target_lab_required": false
+        },
+        "extraction_run_id": "fc2bdea5-3bfd-4239-a4c3-db7b912123d5"
+      },
+      "createdAt": "2026-02-27T11:29:43.523423-05:00",
+      "latestReview": null
+    }
+  },
+  {
+    "payload": "case04_approve_topics_only.json",
+    "caseId": "55f99ba1-7aba-4fee-b636-a9604ce68cf5",
+    "extractionRunId": "a6faf510-855b-42f3-9ef6-b2b03ad9311c",
+    "extractionCompleteResponse": {
+      "message": "Extraction completed (decision engine triggered)",
+      "extractionRunId": "a6faf510-855b-42f3-9ef6-b2b03ad9311c",
+      "factsInserted": 2,
+      "decisionRunId": "c8aa8eed-d638-46d3-b181-8987c4c492e1",
+      "caseStatus": "ai_recommendation"
+    },
+    "latestDecisionResponse": {
+      "caseId": "55f99ba1-7aba-4fee-b636-a9604ce68cf5",
+      "caseStatus": "ai_recommendation",
+      "decisionRunId": "c8aa8eed-d638-46d3-b181-8987c4c492e1",
+      "decisionStatus": "completed",
+      "aiRecommendation": "DENY",
+      "aiRecommendationDisplay": "DENY",
+      "needsMoreInfo": false,
+      "resultJson": {
+        "gaps": [
+          {
+            "text": "No required topics were clearly matched.",
+            "severity": "HARD",
+            "citations": []
+          },
+          {
+            "text": "No required learning outcomes were clearly matched.",
+            "severity": "HARD",
+            "citations": []
+          }
+        ],
+        "reasons": [
+          {
+            "text": "Credits match (3 credits).",
+            "citations": []
+          }
+        ],
+        "decision": "DENY",
+        "confidence": "LOW",
+        "bridge_plan": [],
+        "equivalency_score": 30,
+        "missing_info_requests": []
+      },
+      "decisionInputs": {
+        "policy": {
+          "bridge_threshold": 65,
+          "approve_threshold": 80,
+          "require_lab_parity": true,
+          "require_credits_known": true,
+          "require_topics_or_outcomes": true
+        },
+        "case_id": "55f99ba1-7aba-4fee-b636-a9604ce68cf5",
+        "inputs_hash": "15c759bf201ae5e57feddd7bec9b299ac8bec0cb6993d5ca480b55de0a444a3d",
+        "source_course": {
+          "topics": {
+            "value": [
+              "operating systems",
+              "processes",
+              "threads"
+            ],
+            "unknown": false,
+            "citations": []
+          },
+          "credits": {
+            "value": "3",
+            "unknown": false,
+            "citations": []
+          },
+          "outcomes": {
+            "value": null,
+            "unknown": true,
+            "citations": []
+          },
+          "assessments": {
+            "value": null,
+            "unknown": true,
+            "citations": []
+          },
+          "lab_component": {
+            "value": null,
+            "unknown": true,
+            "citations": []
+          },
+          "contact_hours_lab": {
+            "value": null,
+            "unknown": true,
+            "citations": []
+          },
+          "contact_hours_lecture": {
+            "value": null,
+            "unknown": true,
+            "citations": []
+          }
+        },
+        "target_course": {
+          "target_credits": 3,
+          "required_topics": [
+            "trees",
+            "graphs",
+            "hashing",
+            "heaps"
+          ],
+          "required_outcomes": [
+            "Analyze time complexity",
+            "Implement common data structures",
+            "Design balanced trees"
+          ],
+          "target_lab_required": false
+        },
+        "extraction_run_id": "a6faf510-855b-42f3-9ef6-b2b03ad9311c"
+      },
+      "createdAt": "2026-02-27T11:29:43.557972-05:00",
+      "latestReview": null
+    }
+  },
+  {
+    "payload": "case05_approve_outcomes_only.json",
+    "caseId": "b895ffd7-9df6-4097-8209-060c00dd59ee",
+    "extractionRunId": "f6442370-3ce3-406a-b132-a1b63d01370b",
+    "extractionCompleteResponse": {
+      "message": "Extraction completed (decision engine triggered)",
+      "extractionRunId": "f6442370-3ce3-406a-b132-a1b63d01370b",
+      "factsInserted": 2,
+      "decisionRunId": "404aaeb4-376d-4a72-9971-3c52e7d1c3e1",
+      "caseStatus": "ai_recommendation"
+    },
+    "latestDecisionResponse": {
+      "caseId": "b895ffd7-9df6-4097-8209-060c00dd59ee",
+      "caseStatus": "ai_recommendation",
+      "decisionRunId": "404aaeb4-376d-4a72-9971-3c52e7d1c3e1",
+      "decisionStatus": "completed",
+      "aiRecommendation": "DENY",
+      "aiRecommendationDisplay": "DENY",
+      "needsMoreInfo": false,
+      "resultJson": {
+        "gaps": [
+          {
+            "text": "No required topics were clearly matched.",
+            "severity": "HARD",
+            "citations": []
+          },
+          {
+            "text": "No required learning outcomes were clearly matched.",
+            "severity": "HARD",
+            "citations": []
+          }
+        ],
+        "reasons": [
+          {
+            "text": "Credits match (3 credits).",
+            "citations": []
+          }
+        ],
+        "decision": "DENY",
+        "confidence": "LOW",
+        "bridge_plan": [],
+        "equivalency_score": 30,
+        "missing_info_requests": []
+      },
+      "decisionInputs": {
+        "policy": {
+          "bridge_threshold": 65,
+          "approve_threshold": 80,
+          "require_lab_parity": true,
+          "require_credits_known": true,
+          "require_topics_or_outcomes": true
+        },
+        "case_id": "b895ffd7-9df6-4097-8209-060c00dd59ee",
+        "inputs_hash": "0a96af390b6bc67a7cdd3805519a517fc142e20cfe1c1cc070fa894752b68524",
+        "source_course": {
+          "topics": {
+            "value": null,
+            "unknown": true,
+            "citations": []
+          },
+          "credits": {
+            "value": "3",
+            "unknown": false,
+            "citations": []
+          },
+          "outcomes": {
+            "value": [
+              "Design REST APIs",
+              "Model relational databases"
+            ],
+            "unknown": false,
+            "citations": []
+          },
+          "assessments": {
+            "value": null,
+            "unknown": true,
+            "citations": []
+          },
+          "lab_component": {
+            "value": null,
+            "unknown": true,
+            "citations": []
+          },
+          "contact_hours_lab": {
+            "value": null,
+            "unknown": true,
+            "citations": []
+          },
+          "contact_hours_lecture": {
+            "value": null,
+            "unknown": true,
+            "citations": []
+          }
+        },
+        "target_course": {
+          "target_credits": 3,
+          "required_topics": [
+            "trees",
+            "graphs",
+            "hashing",
+            "heaps"
+          ],
+          "required_outcomes": [
+            "Analyze time complexity",
+            "Implement common data structures",
+            "Design balanced trees"
+          ],
+          "target_lab_required": false
+        },
+        "extraction_run_id": "f6442370-3ce3-406a-b132-a1b63d01370b"
+      },
+      "createdAt": "2026-02-27T11:29:43.583039-05:00",
+      "latestReview": null
+    }
+  },
+  {
+    "payload": "case06_lab_course.json",
+    "caseId": "350f551d-b326-46d8-99eb-7fd5b9390128",
+    "extractionRunId": "b88e64b3-e9ce-46db-abd9-d1a3fe8283ba",
+    "extractionCompleteResponse": {
+      "message": "Extraction completed (decision engine triggered)",
+      "extractionRunId": "b88e64b3-e9ce-46db-abd9-d1a3fe8283ba",
+      "factsInserted": 5,
+      "decisionRunId": "a4272c78-d944-442d-b64f-b1d00762adbe",
+      "caseStatus": "ai_recommendation"
+    },
+    "latestDecisionResponse": {
+      "caseId": "350f551d-b326-46d8-99eb-7fd5b9390128",
+      "caseStatus": "ai_recommendation",
+      "decisionRunId": "a4272c78-d944-442d-b64f-b1d00762adbe",
+      "decisionStatus": "completed",
+      "aiRecommendation": "DENY",
+      "aiRecommendationDisplay": "DENY",
+      "needsMoreInfo": false,
+      "resultJson": {
+        "gaps": [
+          {
+            "text": "Credits are close but not equal (source 4 vs target 3).",
+            "severity": "FIXABLE",
+            "citations": []
+          },
+          {
+            "text": "No required topics were clearly matched.",
+            "severity": "HARD",
+            "citations": []
+          },
+          {
+            "text": "No required learning outcomes were clearly matched.",
+            "severity": "HARD",
+            "citations": []
+          }
+        ],
+        "reasons": [],
+        "decision": "DENY",
+        "confidence": "MEDIUM",
+        "bridge_plan": [
+          "Complete an additional 1-credit bridge component if required by the department."
+        ],
+        "equivalency_score": 20,
+        "missing_info_requests": []
+      },
+      "decisionInputs": {
+        "policy": {
+          "bridge_threshold": 65,
+          "approve_threshold": 80,
+          "require_lab_parity": true,
+          "require_credits_known": true,
+          "require_topics_or_outcomes": true
+        },
+        "case_id": "350f551d-b326-46d8-99eb-7fd5b9390128",
+        "inputs_hash": "8ed8c7c88465252c174ef88063a79a542349ef87ddcd6cc4899bbcd8685e0cb4",
+        "source_course": {
+          "topics": {
+            "value": [
+              "circuits",
+              "digital logic"
+            ],
+            "unknown": false,
+            "citations": []
+          },
+          "credits": {
+            "value": "4",
+            "unknown": false,
+            "citations": []
+          },
+          "outcomes": {
+            "value": null,
+            "unknown": true,
+            "citations": []
+          },
+          "assessments": {
+            "value": null,
+            "unknown": true,
+            "citations": []
+          },
+          "lab_component": {
+            "value": true,
+            "unknown": false,
+            "citations": []
+          },
+          "contact_hours_lab": {
+            "value": "30",
+            "unknown": false,
+            "citations": []
+          },
+          "contact_hours_lecture": {
+            "value": "30",
+            "unknown": false,
+            "citations": []
+          }
+        },
+        "target_course": {
+          "target_credits": 3,
+          "required_topics": [
+            "trees",
+            "graphs",
+            "hashing",
+            "heaps"
+          ],
+          "required_outcomes": [
+            "Analyze time complexity",
+            "Implement common data structures",
+            "Design balanced trees"
+          ],
+          "target_lab_required": false
+        },
+        "extraction_run_id": "b88e64b3-e9ce-46db-abd9-d1a3fe8283ba"
+      },
+      "createdAt": "2026-02-27T11:29:43.607203-05:00",
+      "latestReview": null
+    }
+  },
+  {
+    "payload": "case07_prompt_injection_example.json",
+    "caseId": "06dec310-2a74-401c-91d9-1eba45b0e298",
+    "extractionRunId": "2c2e250b-3693-419a-88c5-3e586327db8e",
+    "extractionCompleteResponse": {
+      "message": "Extraction completed (decision engine triggered)",
+      "extractionRunId": "2c2e250b-3693-419a-88c5-3e586327db8e",
+      "factsInserted": 3,
+      "decisionRunId": "e2b6b74b-1e56-4f1e-aeea-c1da7e8585a0",
+      "caseStatus": "ai_recommendation"
+    },
+    "latestDecisionResponse": {
+      "caseId": "06dec310-2a74-401c-91d9-1eba45b0e298",
+      "caseStatus": "ai_recommendation",
+      "decisionRunId": "e2b6b74b-1e56-4f1e-aeea-c1da7e8585a0",
+      "decisionStatus": "completed",
+      "aiRecommendation": "DENY",
+      "aiRecommendationDisplay": "DENY",
+      "needsMoreInfo": false,
+      "resultJson": {
+        "gaps": [
+          {
+            "text": "No required topics were clearly matched.",
+            "severity": "HARD",
+            "citations": []
+          },
+          {
+            "text": "No required learning outcomes were clearly matched.",
+            "severity": "HARD",
+            "citations": []
+          }
+        ],
+        "reasons": [
+          {
+            "text": "Credits match (3 credits).",
+            "citations": []
+          }
+        ],
+        "decision": "DENY",
+        "confidence": "LOW",
+        "bridge_plan": [],
+        "equivalency_score": 30,
+        "missing_info_requests": []
+      },
+      "decisionInputs": {
+        "policy": {
+          "bridge_threshold": 65,
+          "approve_threshold": 80,
+          "require_lab_parity": true,
+          "require_credits_known": true,
+          "require_topics_or_outcomes": true
+        },
+        "case_id": "06dec310-2a74-401c-91d9-1eba45b0e298",
+        "inputs_hash": "0214f0283df9f03a79fdbd145debce3a91a372ca8563bbe187beb7c4bbb2ab15",
+        "source_course": {
+          "topics": {
+            "value": [
+              "databases",
+              "sql"
+            ],
+            "unknown": false,
+            "citations": []
+          },
+          "credits": {
+            "value": "3",
+            "unknown": false,
+            "citations": []
+          },
+          "outcomes": {
+            "value": null,
+            "unknown": true,
+            "citations": []
+          },
+          "assessments": {
+            "value": null,
+            "unknown": true,
+            "citations": []
+          },
+          "lab_component": {
+            "value": null,
+            "unknown": true,
+            "citations": []
+          },
+          "contact_hours_lab": {
+            "value": null,
+            "unknown": true,
+            "citations": []
+          },
+          "contact_hours_lecture": {
+            "value": null,
+            "unknown": true,
+            "citations": []
+          }
+        },
+        "target_course": {
+          "target_credits": 3,
+          "required_topics": [
+            "trees",
+            "graphs",
+            "hashing",
+            "heaps"
+          ],
+          "required_outcomes": [
+            "Analyze time complexity",
+            "Implement common data structures",
+            "Design balanced trees"
+          ],
+          "target_lab_required": false
+        },
+        "extraction_run_id": "2c2e250b-3693-419a-88c5-3e586327db8e"
+      },
+      "createdAt": "2026-02-27T11:29:43.629923-05:00",
+      "latestReview": null
+    }
+  },
+  {
+    "payload": "case08_sparse_course_low_content.json",
+    "caseId": "8f606346-18ab-4def-8997-bddbf9b20466",
+    "extractionRunId": "29e766c2-fe2c-4404-8562-e0f0fde5e716",
+    "extractionCompleteResponse": {
+      "message": "Extraction completed (decision engine triggered)",
+      "extractionRunId": "29e766c2-fe2c-4404-8562-e0f0fde5e716",
+      "factsInserted": 2,
+      "decisionRunId": "62ca8d1f-6c4d-4d2a-aac8-c356261107b3",
+      "caseStatus": "ai_recommendation"
+    },
+    "latestDecisionResponse": {
+      "caseId": "8f606346-18ab-4def-8997-bddbf9b20466",
+      "caseStatus": "ai_recommendation",
+      "decisionRunId": "62ca8d1f-6c4d-4d2a-aac8-c356261107b3",
+      "decisionStatus": "completed",
+      "aiRecommendation": "DENY",
+      "aiRecommendationDisplay": "DENY",
+      "needsMoreInfo": false,
+      "resultJson": {
+        "gaps": [
+          {
+            "text": "Credits do not match (source 1 vs target 3).",
+            "severity": "HARD",
+            "citations": []
+          },
+          {
+            "text": "No required topics were clearly matched.",
+            "severity": "HARD",
+            "citations": []
+          },
+          {
+            "text": "No required learning outcomes were clearly matched.",
+            "severity": "HARD",
+            "citations": []
+          }
+        ],
+        "reasons": [],
+        "decision": "DENY",
+        "confidence": "LOW",
+        "bridge_plan": [],
+        "equivalency_score": 10,
+        "missing_info_requests": []
+      },
+      "decisionInputs": {
+        "policy": {
+          "bridge_threshold": 65,
+          "approve_threshold": 80,
+          "require_lab_parity": true,
+          "require_credits_known": true,
+          "require_topics_or_outcomes": true
+        },
+        "case_id": "8f606346-18ab-4def-8997-bddbf9b20466",
+        "inputs_hash": "bea22eb91c43bcf5f1828227649f70e71dce73213d4b20a77ebea2a7e1d2c2e7",
+        "source_course": {
+          "topics": {
+            "value": [
+              "intro programming"
+            ],
+            "unknown": false,
+            "citations": []
+          },
+          "credits": {
+            "value": "1",
+            "unknown": false,
+            "citations": []
+          },
+          "outcomes": {
+            "value": null,
+            "unknown": true,
+            "citations": []
+          },
+          "assessments": {
+            "value": null,
+            "unknown": true,
+            "citations": []
+          },
+          "lab_component": {
+            "value": null,
+            "unknown": true,
+            "citations": []
+          },
+          "contact_hours_lab": {
+            "value": null,
+            "unknown": true,
+            "citations": []
+          },
+          "contact_hours_lecture": {
+            "value": null,
+            "unknown": true,
+            "citations": []
+          }
+        },
+        "target_course": {
+          "target_credits": 3,
+          "required_topics": [
+            "trees",
+            "graphs",
+            "hashing",
+            "heaps"
+          ],
+          "required_outcomes": [
+            "Analyze time complexity",
+            "Implement common data structures",
+            "Design balanced trees"
+          ],
+          "target_lab_required": false
+        },
+        "extraction_run_id": "29e766c2-fe2c-4404-8562-e0f0fde5e716"
+      },
+      "createdAt": "2026-02-27T11:29:43.656629-05:00",
+      "latestReview": null
+    }
+  },
+  {
+    "payload": "case09_all_unknown.json",
+    "caseId": "141603b0-60f0-437a-849e-44a5e65ea505",
+    "extractionRunId": "1eec8130-4184-4abc-a6b3-792dcc0865a2",
+    "extractionCompleteResponse": {
+      "message": "Extraction completed (decision engine triggered)",
+      "extractionRunId": "1eec8130-4184-4abc-a6b3-792dcc0865a2",
+      "factsInserted": 4,
+      "decisionRunId": "3743cb7b-1b5b-4fb6-b00e-ba63483620df",
+      "caseStatus": "needs_info"
+    },
+    "latestDecisionResponse": {
+      "caseId": "141603b0-60f0-437a-849e-44a5e65ea505",
+      "caseStatus": "needs_info",
+      "decisionRunId": "3743cb7b-1b5b-4fb6-b00e-ba63483620df",
+      "decisionStatus": "completed",
+      "aiRecommendation": "NEEDS_MORE_INFO",
+      "aiRecommendationDisplay": "NEEDS_MORE_INFO",
+      "needsMoreInfo": true,
+      "resultJson": {
+        "gaps": [
+          {
+            "text": "Missing source course credits."
+          },
+          {
+            "text": "Missing source course topics and learning outcomes."
+          }
+        ],
+        "decision": "NEEDS_MORE_INFO",
+        "confidence": "LOW",
+        "equivalency_score": 0,
+        "missing_info_requests": [
+          "Missing source course credits.",
+          "Missing source course topics and learning outcomes."
+        ]
+      },
+      "decisionInputs": {
+        "policy": {
+          "bridge_threshold": 65,
+          "approve_threshold": 80,
+          "require_lab_parity": true,
+          "require_credits_known": true,
+          "require_topics_or_outcomes": true
+        },
+        "case_id": "141603b0-60f0-437a-849e-44a5e65ea505",
+        "inputs_hash": "c08c48a9400482b2dec1b157459a70c6b7a5e0266d770c3c942c7515795b681a",
+        "source_course": {
+          "topics": {
+            "value": null,
+            "unknown": true,
+            "citations": []
+          },
+          "credits": {
+            "value": null,
+            "unknown": true,
+            "citations": []
+          },
+          "outcomes": {
+            "value": null,
+            "unknown": true,
+            "citations": []
+          },
+          "assessments": {
+            "value": null,
+            "unknown": true,
+            "citations": []
+          },
+          "lab_component": {
+            "value": null,
+            "unknown": true,
+            "citations": []
+          },
+          "contact_hours_lab": {
+            "value": null,
+            "unknown": true,
+            "citations": []
+          },
+          "contact_hours_lecture": {
+            "value": null,
+            "unknown": true,
+            "citations": []
+          }
+        },
+        "target_course": {
+          "target_credits": 3,
+          "required_topics": [
+            "trees",
+            "graphs",
+            "hashing",
+            "heaps"
+          ],
+          "required_outcomes": [
+            "Analyze time complexity",
+            "Implement common data structures",
+            "Design balanced trees"
+          ],
+          "target_lab_required": false
+        },
+        "extraction_run_id": "1eec8130-4184-4abc-a6b3-792dcc0865a2"
+      },
+      "createdAt": "2026-02-27T11:29:43.679977-05:00",
+      "latestReview": null
+    }
+  },
+  {
+    "payload": "case10_bridge_candidate.json",
+    "caseId": "4e091a28-afaa-4ad4-942c-1c899f71f31c",
+    "extractionRunId": "87fd8ce6-3b64-4311-b7ec-7d86474eb6ef",
+    "extractionCompleteResponse": {
+      "message": "Extraction completed (decision engine triggered)",
+      "extractionRunId": "87fd8ce6-3b64-4311-b7ec-7d86474eb6ef",
+      "factsInserted": 3,
+      "decisionRunId": "e97531dd-be80-415c-b525-cfea2a52c4f2",
+      "caseStatus": "ai_recommendation"
+    },
+    "latestDecisionResponse": {
+      "caseId": "4e091a28-afaa-4ad4-942c-1c899f71f31c",
+      "caseStatus": "ai_recommendation",
+      "decisionRunId": "e97531dd-be80-415c-b525-cfea2a52c4f2",
+      "decisionStatus": "completed",
+      "aiRecommendation": "DENY",
+      "aiRecommendationDisplay": "DENY",
+      "needsMoreInfo": false,
+      "resultJson": {
+        "gaps": [
+          {
+            "text": "Credits are close but not equal (source 2 vs target 3).",
+            "severity": "FIXABLE",
+            "citations": []
+          },
+          {
+            "text": "No required topics were clearly matched.",
+            "severity": "HARD",
+            "citations": []
+          },
+          {
+            "text": "No required learning outcomes were clearly matched.",
+            "severity": "HARD",
+            "citations": []
+          }
+        ],
+        "reasons": [],
+        "decision": "DENY",
+        "confidence": "MEDIUM",
+        "bridge_plan": [
+          "Complete an additional 1-credit bridge component if required by the department."
+        ],
+        "equivalency_score": 20,
+        "missing_info_requests": []
+      },
+      "decisionInputs": {
+        "policy": {
+          "bridge_threshold": 65,
+          "approve_threshold": 80,
+          "require_lab_parity": true,
+          "require_credits_known": true,
+          "require_topics_or_outcomes": true
+        },
+        "case_id": "4e091a28-afaa-4ad4-942c-1c899f71f31c",
+        "inputs_hash": "ef53bf4981f882030e457e60ae500d8a73f8f50a1b5e2deb3047e287e293ae5b",
+        "source_course": {
+          "topics": {
+            "value": [
+              "loops",
+              "variables",
+              "basic algorithms"
+            ],
+            "unknown": false,
+            "citations": []
+          },
+          "credits": {
+            "value": "2",
+            "unknown": false,
+            "citations": []
+          },
+          "outcomes": {
+            "value": [
+              "Write basic Python programs"
+            ],
+            "unknown": false,
+            "citations": []
+          },
+          "assessments": {
+            "value": null,
+            "unknown": true,
+            "citations": []
+          },
+          "lab_component": {
+            "value": null,
+            "unknown": true,
+            "citations": []
+          },
+          "contact_hours_lab": {
+            "value": null,
+            "unknown": true,
+            "citations": []
+          },
+          "contact_hours_lecture": {
+            "value": null,
+            "unknown": true,
+            "citations": []
+          }
+        },
+        "target_course": {
+          "target_credits": 3,
+          "required_topics": [
+            "trees",
+            "graphs",
+            "hashing",
+            "heaps"
+          ],
+          "required_outcomes": [
+            "Analyze time complexity",
+            "Implement common data structures",
+            "Design balanced trees"
+          ],
+          "target_lab_required": false
+        },
+        "extraction_run_id": "87fd8ce6-3b64-4311-b7ec-7d86474eb6ef"
+      },
+      "createdAt": "2026-02-27T11:29:43.702847-05:00",
+      "latestReview": null
+    }
+  },
+  {
+    "payload": "case11_approve_with bridge.json",
+    "caseId": "12a62405-2e6c-4a75-b234-cb24b1f53f92",
+    "extractionRunId": "3e33dbec-d9b0-4520-ac87-c570dca12e2c",
+    "extractionCompleteResponse": {
+      "message": "Extraction completed (decision engine triggered)",
+      "extractionRunId": "3e33dbec-d9b0-4520-ac87-c570dca12e2c",
+      "factsInserted": 4,
+      "decisionRunId": "22c1b6f0-018c-4c7f-a8fe-94370324a351",
+      "caseStatus": "ai_recommendation"
+    },
+    "latestDecisionResponse": {
+      "caseId": "12a62405-2e6c-4a75-b234-cb24b1f53f92",
+      "caseStatus": "ai_recommendation",
+      "decisionRunId": "22c1b6f0-018c-4c7f-a8fe-94370324a351",
+      "decisionStatus": "completed",
+      "aiRecommendation": "APPROVE_WITH_BRIDGE",
+      "aiRecommendationDisplay": "APPROVE_WITH_BRIDGE",
+      "needsMoreInfo": false,
+      "resultJson": {
+        "gaps": [
+          {
+            "text": "Credits are close but not equal (source 2 vs target 3).",
+            "severity": "FIXABLE",
+            "citations": []
+          }
+        ],
+        "reasons": [
+          {
+            "text": "Matched 3/4 required topics.",
+            "citations": []
+          },
+          {
+            "text": "Matched 2/3 required learning outcomes.",
+            "citations": []
+          }
+        ],
+        "decision": "APPROVE_WITH_BRIDGE",
+        "confidence": "MEDIUM",
+        "bridge_plan": [
+          "Complete an additional 1-credit bridge component if required by the department."
+        ],
+        "equivalency_score": 70,
+        "missing_info_requests": []
+      },
+      "decisionInputs": {
+        "policy": {
+          "bridge_threshold": 65,
+          "approve_threshold": 80,
+          "require_lab_parity": true,
+          "require_credits_known": true,
+          "require_topics_or_outcomes": true
+        },
+        "case_id": "12a62405-2e6c-4a75-b234-cb24b1f53f92",
+        "inputs_hash": "7f3027730b8b75b7db561d11c885856db8ea4eb722e89bba9096191e692bb188",
+        "source_course": {
+          "topics": {
+            "value": [
+              "trees",
+              "graphs",
+              "hashing"
+            ],
+            "unknown": false,
+            "citations": []
+          },
+          "credits": {
+            "value": "2",
+            "unknown": false,
+            "citations": []
+          },
+          "outcomes": {
+            "value": [
+              "Analyze time complexity",
+              "Implement common data structures"
+            ],
+            "unknown": false,
+            "citations": []
+          },
+          "assessments": {
+            "value": null,
+            "unknown": true,
+            "citations": []
+          },
+          "lab_component": {
+            "value": false,
+            "unknown": false,
+            "citations": []
+          },
+          "contact_hours_lab": {
+            "value": null,
+            "unknown": true,
+            "citations": []
+          },
+          "contact_hours_lecture": {
+            "value": null,
+            "unknown": true,
+            "citations": []
+          }
+        },
+        "target_course": {
+          "target_credits": 3,
+          "required_topics": [
+            "trees",
+            "graphs",
+            "hashing",
+            "heaps"
+          ],
+          "required_outcomes": [
+            "Analyze time complexity",
+            "Implement common data structures",
+            "Design balanced trees"
+          ],
+          "target_lab_required": false
+        },
+        "extraction_run_id": "3e33dbec-d9b0-4520-ac87-c570dca12e2c"
+      },
+      "createdAt": "2026-02-27T11:29:43.726269-05:00",
+      "latestReview": null
+    }
+  }
+]

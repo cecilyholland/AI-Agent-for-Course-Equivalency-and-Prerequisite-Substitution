@@ -1,0 +1,8 @@
+{
+  "facts": [
+    {"factType":"course","factKey":"credits","unknown":true},
+    {"factType":"course","factKey":"topics","unknown":true},
+    {"factType":"course","factKey":"outcomes","unknown":true},
+    {"factType":"course","factKey":"lab_component","unknown":true}
+  ]
+}

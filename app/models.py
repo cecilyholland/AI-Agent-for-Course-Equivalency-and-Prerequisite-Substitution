@@ -3,8 +3,10 @@ from datetime import datetime
 from sqlalchemy import Column, DateTime, Text, Boolean, ForeignKey, Integer, String
 from sqlalchemy.orm import declarative_base, relationship
 from sqlalchemy.sql import text
-
 from sqlalchemy.dialects.postgresql import UUID, JSONB
+from sqlalchemy.ext.mutable import MutableDict
+from sqlalchemy.dialects.postgresql import JSONB
+
 
 Base = declarative_base()
 
@@ -21,6 +23,8 @@ class Request(Base):
     updated_at = Column(DateTime(timezone=True), nullable=False, server_default=text("NOW()"))
 
     status = Column(Text, nullable=False)
+
+    assigned_reviewer_id = Column(UUID(as_uuid=True), ForeignKey("reviewers.reviewer_id", ondelete="SET NULL"))
 
     documents = relationship("Document", back_populates="request", cascade="all, delete-orphan")
 
@@ -74,7 +78,7 @@ class GroundedEvidence(Base):
     fact_type = Column(Text, nullable=False)
     fact_key = Column(Text)
     fact_value = Column(Text)
-    fact_json = Column(JSONB)  # ✅ matches db_schema.sql (JSONB)
+    fact_json = Column(JSONB)  
 
     unknown = Column(Boolean, nullable=False, server_default=text("FALSE"))
     notes = Column(Text)
@@ -104,7 +108,7 @@ class ReviewAction(Base):
 
     created_at = Column(DateTime(timezone=True), nullable=False, server_default=text("NOW()"))
 
-    reviewer_id = Column(Text, nullable=False)
+    reviewer_id = Column(UUID(as_uuid=True), ForeignKey("reviewers.reviewer_id", ondelete="RESTRICT"), nullable=False)
     action = Column(Text, nullable=False)
     comment = Column(Text, nullable=False)
 
@@ -129,3 +133,10 @@ class DecisionResult(Base):
 
     # optional list/structure of fields needed
     missing_fields = Column(JSONB)
+
+class Reviewer(Base):
+    __tablename__ = "reviewers"
+
+    reviewer_id = Column(UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()"))
+    reviewer_name = Column(Text)
+    created_at = Column(DateTime(timezone=True), nullable=False, server_default=text("NOW()"))

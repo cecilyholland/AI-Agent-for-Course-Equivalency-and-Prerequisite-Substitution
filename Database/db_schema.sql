@@ -9,6 +9,7 @@ CREATE TABLE requests (
   course_requested TEXT,
   created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  assigned_reviewer_id UUID REFERENCES reviewers(reviewer_id)
 
   -- this status tells us what part the system is at
   status          TEXT NOT NULL CHECK (status IN (
@@ -212,3 +213,29 @@ CREATE TABLE review_actions (
 CREATE INDEX idx_review_actions_request_id ON review_actions(request_id);
 -- find review actions by type
 CREATE INDEX idx_review_actions_action ON review_actions(action);
+
+-- demo-only reviewers table (minimal)
+CREATE TABLE reviewers (
+  reviewer_id   UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  reviewer_name TEXT,
+  created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX idx_reviewers_created_at ON reviewers(created_at);
+
+-- assign a reviewer to a case (optional but needed for "random assignment" demo)
+ALTER TABLE requests
+  ADD COLUMN assigned_reviewer_id UUID REFERENCES reviewers(reviewer_id) ON DELETE SET NULL;
+
+CREATE INDEX idx_requests_assigned_reviewer_id ON requests(assigned_reviewer_id);
+
+-- tighten review_actions reviewer_id from TEXT -> UUID and require it
+ALTER TABLE review_actions
+  ALTER COLUMN reviewer_id TYPE UUID USING reviewer_id::uuid;
+
+ALTER TABLE review_actions
+  ALTER COLUMN reviewer_id SET NOT NULL;
+
+ALTER TABLE review_actions
+  ADD CONSTRAINT fk_review_actions_reviewer
+  FOREIGN KEY (reviewer_id) REFERENCES reviewers(reviewer_id) ON DELETE RESTRICT;
