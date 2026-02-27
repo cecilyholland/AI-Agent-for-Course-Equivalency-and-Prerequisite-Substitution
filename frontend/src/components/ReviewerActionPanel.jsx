@@ -17,7 +17,7 @@ export default function ReviewerActionPanel({
   const [confirmed, setConfirmed] = useState(false);
   const [commentError, setCommentError] = useState("");
 
-  const isDisabled = currentStatus === "REVIEWED" || confirmed;
+  const isDisabled = currentStatus === "REVIEWED" || currentStatus === "APPROVED" || currentStatus === "DENIED" || confirmed;
 
   const handleActionClick = (action) => {
     if (isDisabled) return;

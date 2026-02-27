@@ -87,7 +87,7 @@ export default function StudentCaseView() {
         </ul>
       </div>
 
-      {caseData.status === "REVIEWED" && caseData.reviewerDecision && (
+      {(caseData.status === "APPROVED" || caseData.status === "DENIED") && caseData.reviewerDecision && (
         <div className={`student-case-view__decision-banner student-case-view__decision-banner--${caseData.reviewerDecision}`}>
           <h3 className="student-case-view__decision-title">
             {caseData.reviewerDecision === "approve"
