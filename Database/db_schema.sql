@@ -9,7 +9,7 @@ CREATE TABLE requests (
   course_requested TEXT,
   created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  assigned_reviewer_id UUID REFERENCES reviewers(reviewer_id)
+  assigned_reviewer_id UUID,
 
   -- this status tells us what part the system is at
   status          TEXT NOT NULL CHECK (status IN (
@@ -52,7 +52,7 @@ CREATE INDEX idx_documents_request_id ON documents(request_id);
 CREATE INDEX idx_documents_sha256 ON documents(sha256);
 
 
--- tracks each attempt to run Cecily’s extraction pipeline
+-- tracks each attempt to run Cecilys extraction pipeline
 -- records each extraction attempt so we know what ran, what failed, and where the evidence came from
 CREATE TABLE extraction_runs (
   extraction_run_id  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -117,9 +117,9 @@ CREATE TABLE grounded_evidence (
   fact_key           TEXT,            -- optional stable key (e.g., "credits_total", "required_prerequisites")
   fact_value         TEXT,            -- normalized value if simple
   fact_json          JSONB,           -- helps formating the fact into a json format
--- “Evidence valid?” gate. Indicates whether the value could not be determined from the documents
-    -- FALSE: fact is known and supported
-    -- TRUE: fact is missing or unclear
+-- Evidence valid? gate. Indicates whether the value could not be determined from the documents
+-- FALSE: fact is known and supported
+-- TRUE: fact is missing or unclear
   unknown            BOOLEAN NOT NULL DEFAULT FALSE,
   -- optional and not required
   notes              TEXT
@@ -220,12 +220,14 @@ CREATE TABLE reviewers (
   reviewer_name TEXT,
   created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
-
-CREATE INDEX idx_reviewers_created_at ON reviewers(created_at);
-
+-- link requests to reviewers 
 -- assign a reviewer to a case (optional but needed for "random assignment" demo)
 ALTER TABLE requests
-  ADD COLUMN assigned_reviewer_id UUID REFERENCES reviewers(reviewer_id) ON DELETE SET NULL;
+  ADD CONSTRAINT fk_requests_assigned_reviewer
+  FOREIGN KEY (assigned_reviewer_id)
+  REFERENCES reviewers(reviewer_id)  ON DELETE SET NULL;
+
+CREATE INDEX idx_reviewers_created_at ON reviewers(created_at);
 
 CREATE INDEX idx_requests_assigned_reviewer_id ON requests(assigned_reviewer_id);
 
@@ -239,3 +241,5 @@ ALTER TABLE review_actions
 ALTER TABLE review_actions
   ADD CONSTRAINT fk_review_actions_reviewer
   FOREIGN KEY (reviewer_id) REFERENCES reviewers(reviewer_id) ON DELETE RESTRICT;
+
+
