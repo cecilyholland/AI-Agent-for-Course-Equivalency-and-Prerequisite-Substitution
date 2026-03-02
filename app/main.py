@@ -1393,6 +1393,23 @@ def generate_decision_packet(engine_result) -> dict:
         "citations": [],  # Cecily will populate later via grounding
     }
 
+@app.get("/api/reviewers", response_model=list[ReviewerOut])
+def list_reviewers(db: Session = Depends(get_db)):
+    reviewers = (
+        db.query(Reviewer)
+        .order_by(Reviewer.created_at.desc())
+        .all()
+    )
+
+    return [
+        ReviewerOut(
+            reviewerId=str(r.reviewer_id),
+            reviewerName=r.reviewer_name,
+            createdAt=r.created_at,
+        )
+        for r in reviewers
+    ]
+
 @app.post("/api/reviewers", response_model=ReviewerOut)
 def create_reviewer(body: ReviewerCreateIn, db: Session = Depends(get_db)):
     r = Reviewer(
