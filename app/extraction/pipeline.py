@@ -231,6 +231,40 @@ def _all_chunk_uuids(page_chunk_uuids: List[List[str]]) -> List[str]:
     for cuids in page_chunk_uuids:
         out.extend(cuids)
     return out
+
+
+def _insert_placeholder_chunk(conn, doc_id: str, run_id: str, filename: str) -> str:
+    """
+    Insert a synthetic placeholder chunk when a document yields 0 extractable text.
+    This ensures every evidence item can have at least one citation.
+    """
+    placeholder_text = f"[No extractable text from {filename}]"
+    basis = f"{doc_id}|{run_id}|0|0|0|{placeholder_text}"
+    chunk_sha_id = _sha256_text(basis)
+
+    row = conn.execute(
+        text(
+            """
+            INSERT INTO citation_chunks (
+              chunk_sha_id, doc_id, extraction_run_id, page_num, span_start, span_end, snippet_text, full_text
+            )
+            VALUES (
+              :chunk_sha_id, :doc_id, :run_id, 0, 0, 0, :snippet_text, :full_text
+            )
+            ON CONFLICT (chunk_sha_id) DO UPDATE
+              SET snippet_text = EXCLUDED.snippet_text
+            RETURNING chunk_uuid
+            """
+        ),
+        {
+            "chunk_sha_id": chunk_sha_id,
+            "doc_id": doc_id,
+            "run_id": run_id,
+            "snippet_text": placeholder_text,
+            "full_text": placeholder_text,
+        },
+    ).fetchone()
+    return str(row[0])
 # ----------------------------
 # Public API
 # ----------------------------
@@ -327,12 +361,23 @@ def run_extraction(request_id: str, output_dir: str = "Data/Processed/manifests"
                 if doc_fallback_chunks and not global_fallback_chunks:
                     global_fallback_chunks = doc_fallback_chunks
 
-                # if we got 0 chunks for this doc, record a warning (very useful)
+                # if we got 0 chunks for this doc, create placeholder and record warning
                 if total_chunks == 0:
-                    manifest["warnings"].append(
+                    warn_msg = (
                         f"No chunks extracted for doc_id={doc_id} filename={filename}. "
                         f"Document may be image-only or have unsupported text encoding."
                     )
+                    manifest["warnings"].append(warn_msg)
+                    _log(f"WARN: {warn_msg}")
+
+                    # Create placeholder chunk so evidence can still be cited
+                    placeholder_uuid = _insert_placeholder_chunk(conn, doc_id, run_id, filename)
+                    doc_fallback_chunks = [placeholder_uuid]
+                    doc_manifest["chunks_written"] = 1
+                    doc_manifest["placeholder_chunk"] = True
+
+                    if not global_fallback_chunks:
+                        global_fallback_chunks = [placeholder_uuid]
 
                 # Evidence extraction + citations
                 if doc_type == "syllabus":
@@ -385,17 +430,41 @@ def run_extraction(request_id: str, output_dir: str = "Data/Processed/manifests"
                     target_code = next(iter(target_course_codes), None)
                     target_title = next(iter(target_titles), None)
 
-                    best, reason = match_candidates_to_target(candidates, target_code, target_title)
+                    try:
+                        best, reason = match_candidates_to_target(candidates, target_code, target_title)
+                    except Exception as match_err:
+                        manifest["warnings"].append(
+                            f"Catalog match raised exception for doc_id={doc_id}: {match_err}"
+                        )
+                        best = None
+                        reason = "match_exception"
+
+                    # Defensive: ensure best is a valid dict with expected fields
+                    if best is not None:
+                        if not isinstance(best, dict):
+                            manifest["warnings"].append(
+                                f"Catalog match returned malformed result for doc_id={doc_id}: {type(best).__name__}"
+                            )
+                            best = None
+                            reason = "malformed_match_result"
+                        elif not best.get("course_code") and not best.get("title"):
+                            manifest["warnings"].append(
+                                f"Catalog match returned empty dict for doc_id={doc_id}"
+                            )
+                            best = None
+                            reason = "empty_match_result"
 
                     if best is not None:
-                        key = f"match::{best.get('course_code') or (target_code or 'unknown')}"
+                        # Safe extraction with defaults
+                        best_code = best.get("course_code") if isinstance(best.get("course_code"), str) else None
+                        key = f"match::{best_code or target_code or 'unknown'}"
                         ev_id = _insert_evidence(
                             conn=conn,
                             request_id=request_id,
                             run_id=run_id,
                             fact_type="catalog_course_match",
                             fact_key=key,
-                            fact_value=best.get("course_code"),
+                            fact_value=best_code,
                             fact_json=best,
                             unknown=False,
                             notes=f"Catalog matched via {reason}",
@@ -403,8 +472,13 @@ def run_extraction(request_id: str, output_dir: str = "Data/Processed/manifests"
 
                         # Prefer cited pages from the match; fallback if empty/invalid
                         cite: List[str] = []
-                        for p in ((best or {}).get("source_pages") or []):
-                            if 1 <= p <= len(page_chunk_uuids):
+                        source_pages = best.get("source_pages")
+                        if source_pages is None:
+                            source_pages = []
+                        if not isinstance(source_pages, list):
+                            source_pages = []
+                        for p in source_pages:
+                            if isinstance(p, int) and 1 <= p <= len(page_chunk_uuids):
                                 cite.extend(page_chunk_uuids[p - 1])
 
                         if not cite:

@@ -49,7 +49,7 @@ def _validate_request(request_id: str) -> bool:
         ).fetchone()
 
         if not run:
-            print(f"[validate] ❌ No extraction_runs found for request_id={request_id}")
+            print(f"[validate] FAIL: No extraction_runs found for request_id={request_id}")
             return False
 
         run_id, status, manifest_uri, created_at = run
@@ -101,15 +101,15 @@ def _validate_request(request_id: str) -> bool:
         ).fetchall()
 
         if uncovered:
-            print("[validate] ❌ Evidence items missing citations:")
+            print("[validate] FAIL: Evidence items missing citations:")
             for evid, ft, fk in uncovered:
                 print(f"  - evidence_id={evid} fact_type={ft} fact_key={fk}")
             return False
 
         if status != "completed":
-            print("[validate] ⚠️ Latest run is not completed (still validating citations/chunks though).")
+            print("[validate] WARN: Latest run is not completed (still validating citations/chunks though).")
 
-        print("[validate] ✅ PASS: evidence items all have ≥ 1 citation")
+        print("[validate] PASS: evidence items all have >= 1 citation")
         return True
 
 
