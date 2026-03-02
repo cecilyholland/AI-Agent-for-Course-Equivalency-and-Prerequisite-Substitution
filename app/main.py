@@ -14,13 +14,14 @@ from fastapi import (
     File,
     Form,
     HTTPException,
+    BackgroundTasks,
     Query,
 )
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker, Session
 
 from app.workflow_logger import log_event
-
+from app.extraction.pipeline import run_extraction as run_extraction_pipeline
 
 from app.models import (
     Base,
@@ -253,7 +254,148 @@ def build_audit_log(db: Session, request_id: str) -> Dict[str, Any]:
         ],
     }
 
+def run_decision_for_case_and_run(
+    db: Session,
+    case_uuid: uuid.UUID,
+    extraction_run_id: uuid.UUID,
+) -> uuid.UUID:
+    """
+    Creates a decision_run + decision_result for a case, using evidence produced
+    by the given extraction_run_id. Updates requests.status accordingly.
 
+    Returns: decision_run_id
+    """
+    # Reload case fresh (important because extraction pipeline uses its own engine/tx)
+    case = db.query(Request).filter(Request.request_id == case_uuid).first()
+    if not case:
+        raise HTTPException(status_code=404, detail="Case not found (post-extraction)")
+
+    # Only proceed if extraction says we're ready
+    if case.status != "ready_for_decision":
+        # If extraction marked needs_info, we stop here.
+        raise HTTPException(
+            status_code=409,
+            detail=f"Case not ready_for_decision after extraction (status={case.status})",
+        )
+
+    # Pull evidence for *this* extraction_run_id
+    evidence_rows = (
+        db.query(GroundedEvidence)
+        .filter(
+            GroundedEvidence.request_id == case_uuid,
+            GroundedEvidence.extraction_run_id == extraction_run_id,
+        )
+        .order_by(GroundedEvidence.created_at.asc())
+        .all()
+    )
+    if not evidence_rows:
+        raise HTTPException(status_code=409, detail="No grounded evidence found for extraction_run_id")
+
+    # Create decision_run first (running)
+    decision_run = DecisionRun(
+        request_id=case_uuid,
+        status="running",
+        started_at=now_utc(),
+        finished_at=None,
+        error_message=None,
+        decision_inputs=None,
+    )
+    db.add(decision_run)
+    db.flush()
+
+    try:
+        # Build packet + hash
+        packet = build_contracts_packet(case, evidence_rows)
+        packet_hash = compute_packet_hash(packet)
+
+        # Idempotency: if latest completed run has same inputs_hash + extraction_run_id, reuse it
+        existing_completed = (
+            db.query(DecisionRun)
+            .filter(
+                DecisionRun.request_id == case_uuid,
+                DecisionRun.status == "completed",
+            )
+            .order_by(DecisionRun.created_at.desc())
+            .first()
+        )
+        if existing_completed and isinstance(existing_completed.decision_inputs, dict):
+            prev_hash = existing_completed.decision_inputs.get("inputs_hash")
+            prev_extraction = existing_completed.decision_inputs.get("extraction_run_id")
+            if prev_hash == packet_hash and prev_extraction == str(extraction_run_id):
+                decision_run.status = "completed"
+                decision_run.finished_at = now_utc()
+                # Do not change case status; it should already reflect latest
+                return existing_completed.decision_run_id
+
+        # Store packet for traceability
+        decision_run.decision_inputs = packet.model_dump()
+        decision_run.decision_inputs["inputs_hash"] = packet_hash
+        decision_run.decision_inputs["extraction_run_id"] = str(extraction_run_id)
+
+        # Validate packet (synthetic NEEDS_MORE_INFO if missing)
+        missing = validate_packet_or_raise(packet)
+        if missing:
+            synthetic_result_json = {
+                "decision": "NEEDS_MORE_INFO",
+                "equivalency_score": 0,
+                "confidence": "LOW",
+                "gaps": [{"text": m} for m in missing],
+                "missing_info_requests": missing,
+            }
+            db.add(
+                DecisionResult(
+                    decision_run_id=decision_run.decision_run_id,
+                    result_json=synthetic_result_json,
+                    needs_more_info=True,
+                    missing_fields={"missing_info_requests": missing},
+                )
+            )
+            decision_run.status = "completed"
+            decision_run.finished_at = now_utc()
+
+            case.status = "needs_info"
+            case.updated_at = now_utc()
+            return decision_run.decision_run_id
+
+        # Run engine
+        engine_result = decide(packet)
+
+        needs_more_info = (engine_result.decision.value == "NEEDS_MORE_INFO")
+        missing_fields = (
+            {"missing_info_requests": engine_result.missing_info_requests}
+            if engine_result.missing_info_requests
+            else None
+        )
+
+        db.add(
+            DecisionResult(
+                decision_run_id=decision_run.decision_run_id,
+                result_json=engine_result.model_dump(),
+                needs_more_info=needs_more_info,
+                missing_fields=missing_fields,
+            )
+        )
+
+        decision_run.status = "completed"
+        decision_run.finished_at = now_utc()
+
+        case.status = "needs_info" if needs_more_info else "ai_recommendation"
+        case.updated_at = now_utc()
+
+        return decision_run.decision_run_id
+
+    except Exception as ex:
+        decision_run.status = "failed"
+        decision_run.error_message = str(ex)
+        decision_run.finished_at = now_utc()
+
+        # safest workflow signal
+        case.status = "needs_info"
+        case.updated_at = now_utc()
+
+        # IMPORTANT: do not raise; commit failure state
+        return decision_run.decision_run_id
+    
 # FRONTEND ROUTES
 @app.post("/api/cases", response_model=CaseOut)
 def create_case(
@@ -294,14 +436,6 @@ def create_case(
                 created_at=now_utc(),
             )
         )
-
-    db.add(
-        ExtractionRun(
-            request_id=req.request_id,
-            status="queued",
-            created_at=now_utc(),
-        )
-    )
 
     db.commit()
     return case_to_out(req)
@@ -471,14 +605,6 @@ def add_documents(
     event="DocumentsAdded",
     extra={"doc_count": len(files), "filenames": [f.filename for f in files]},
     )
-    
-    db.add(
-        ExtractionRun(
-            request_id=caseId,
-            status="queued",
-            created_at=now_utc(),
-        )
-    )
 
     log_event(
     request_id=str(req.request_id),
@@ -578,54 +704,97 @@ def submit_review(
     db.refresh(req)
     return case_to_out(req)
 
+@app.get("/api/cases", response_model=list[CaseOut])
+def list_cases(
+    status: Optional[str] = Query(None),
+    studentId: Optional[str] = Query(None),
+    db: Session = Depends(get_db),
+):
 
-@app.post("/api/cases/{caseId}/extraction/start", response_model=ExtractionStartOut)
+    query = db.query(Request)
+
+    if status:
+        query = query.filter(Request.status == status)
+
+    if studentId:
+        query = query.filter(Request.student_id == studentId)
+
+    cases = query.order_by(Request.created_at.desc()).all()
+
+    return [case_to_out(c) for c in cases]
+
+@app.post("/api/cases/{caseId}/extraction/start")
 def start_extraction(caseId: str, db: Session = Depends(get_db)):
-    req = db.query(Request).filter(Request.request_id == caseId).first()
+    try:
+        case_uuid = uuid.UUID(caseId)
+    except ValueError:
+        raise HTTPException(status_code=422, detail="Invalid caseId (must be a UUID)")
+
+    req = db.query(Request).filter(Request.request_id == case_uuid).first()
     if not req:
         raise HTTPException(status_code=404, detail="Case not found")
 
-    run = (
-        db.query(ExtractionRun)
-        .filter(ExtractionRun.request_id == caseId, ExtractionRun.status == "queued")
-        .order_by(ExtractionRun.created_at.desc())
-        .first()
-    )
-    if not run:
-        raise HTTPException(status_code=409, detail="No queued extraction run for this case")
-
     docs = (
         db.query(Document)
-        .filter(Document.request_id == caseId, Document.is_active == True)
+        .filter(Document.request_id == case_uuid, Document.is_active == True)
         .order_by(Document.created_at.asc())
         .all()
     )
     if not docs:
         raise HTTPException(status_code=409, detail="No active documents to extract")
 
-    run.status = "running"
-    run.started_at = now_utc()
-
+    # mark extracting for workflow clarity
     req.status = "extracting"
     req.updated_at = now_utc()
-
     db.commit()
 
-    return ExtractionStartOut(
-        extractionRunId=str(run.extraction_run_id),
-        caseId=caseId,
-        status="running",
-        documents=[
-            ExtractionStartDocOut(
-                docId=str(d.doc_id),
-                filename=d.filename,
-                sha256=d.sha256,
-                storageUri=d.storage_uri,
-            )
-            for d in docs
-        ],
-    )
+    # Phase 1: run extraction (Cecily)
+    try:
+        extraction_run_id_str = run_extraction_pipeline(str(case_uuid))
+    except Exception as e:
+        db.expire_all()
+        req = db.query(Request).filter(Request.request_id == case_uuid).first()
+        return {
+            "message": "Extraction failed",
+            "caseId": caseId,
+            "caseStatus": req.status if req else None,
+            "error": str(e),
+        }
 
+    db.expire_all()
+    req = db.query(Request).filter(Request.request_id == case_uuid).first()
+
+    if not req or req.status != "ready_for_decision":
+        return {
+            "message": "Extraction completed but case not ready_for_decision",
+            "caseId": caseId,
+            "extractionRunId": extraction_run_id_str,
+            "caseStatus": req.status if req else None,
+        }
+
+    # Phase 2: decision trigger (never break endpoint)
+    extraction_run_uuid = uuid.UUID(extraction_run_id_str)
+    try:
+        decision_run_id = run_decision_for_case_and_run(db, case_uuid, extraction_run_uuid)
+        db.commit()
+        db.refresh(req)
+        return {
+            "message": "Extraction completed + decision auto-triggered",
+            "caseId": caseId,
+            "extractionRunId": str(extraction_run_uuid),
+            "decisionRunId": str(decision_run_id),
+            "caseStatus": req.status,
+        }
+    except Exception as e:
+        # decision failure shouldn't block extraction success
+        db.rollback()
+        return {
+            "message": "Extraction completed but decision trigger failed",
+            "caseId": caseId,
+            "extractionRunId": str(extraction_run_uuid),
+            "error": str(e),
+            "caseStatus": req.status if req else None,
+        }
 
 @app.post("/api/cases/{caseId}/extraction/complete")
 def complete_extraction(caseId: str, body: ExtractionCompleteIn, db: Session = Depends(get_db)):
