@@ -8,6 +8,9 @@ from typing import Any, Dict, List, Optional, Tuple
 
 COURSE_CODE_RE = re.compile(r"\b([A-Z]{2,6})\s*([0-9]{3,4}[A-Z]?)\b")
 
+# MIT-style dot notation: 10.213, 5.12, 18.03
+MIT_COURSE_CODE_RE = re.compile(r"\b(\d{1,2})\.(\d{2,4}[A-Z]?)\b")
+
 # Looser header: "MED 2150. General Pathology. 4 Credit Hours."
 CATALOG_HEADER_RE = re.compile(
     r"^(?P<subj>[A-Z]{2,6})\s*(?P<num>\d{3,4}[A-Z]?)\.\s*(?P<title>.+?)\.\s*(?P<credits>\d+)\s*Credit\s*Hours?\.?\s*$"
@@ -17,6 +20,18 @@ CATALOG_HEADER_RE = re.compile(
 CATALOG_HEADER_NO_CREDITS_RE = re.compile(
     r"^(?P<subj>[A-Z]{2,6})\s*(?P<num>\d{3,4}[A-Z]?)\.\s*(?P<title>.+?)\.?\s*$"
 )
+
+# MIT-style header: "10.213 Chemical and Biological Engineering Thermodynamics"
+MIT_HEADER_RE = re.compile(
+    r"^(?P<code>\d{1,2}\.\d{2,4}[A-Z]?)\s+(?P<title>[A-Z][A-Za-z,\s&\-]+?)(?:\s*,|\s*$)"
+)
+
+# Pattern to split lines at course code boundaries (for mid-line course detection)
+# Matches: "MED 2150." or "BIOL 0420." patterns that start a new course entry
+COURSE_SPLIT_RE = re.compile(r"(?=\b[A-Z]{2,6}\s*\d{3,4}[A-Z]?\.)")
+
+# MIT-style split pattern: split at "10.213 " (number.number followed by space and capital letter)
+MIT_SPLIT_RE = re.compile(r"(?=\b\d{1,2}\.\d{2,4}[A-Z]?\s+[A-Z])")
 
 EXPECTED_BG_RE = re.compile(r"Expected(?: background)?:\s*(.+)$", re.IGNORECASE)
 
@@ -42,8 +57,10 @@ def extract_catalog_structure_and_candidates(pages_text: List[str]) -> Tuple[str
       - source_pages (list[int])
     """
     combined = "\n".join(pages_text)
-    has_courseish = bool(COURSE_CODE_RE.search(combined)) or any(
-        (CATALOG_HEADER_RE.search(p) or CATALOG_HEADER_NO_CREDITS_RE.search(p)) for p in pages_text
+    has_courseish = (
+        bool(COURSE_CODE_RE.search(combined)) or
+        bool(MIT_COURSE_CODE_RE.search(combined)) or
+        any((CATALOG_HEADER_RE.search(p) or CATALOG_HEADER_NO_CREDITS_RE.search(p)) for p in pages_text)
     )
     if not has_courseish:
         return ("program_level", [])
@@ -65,10 +82,25 @@ def extract_catalog_structure_and_candidates(pages_text: List[str]) -> Tuple[str
         current_pages = set()
 
     for pi, page in enumerate(pages_text, start=1):
-        lines = [ln.strip() for ln in page.splitlines() if ln.strip()]
+        raw_lines = [ln.strip() for ln in page.splitlines() if ln.strip()]
+        # Split lines at course code boundaries to handle mid-line course entries
+        lines = []
+        for raw_ln in raw_lines:
+            # First split on traditional course codes (MED 2150.)
+            split_parts = COURSE_SPLIT_RE.split(raw_ln)
+            # Then split on MIT-style codes (10.213 Title)
+            final_parts = []
+            for part in split_parts:
+                mit_split = MIT_SPLIT_RE.split(part)
+                final_parts.extend(mit_split)
+            for part in final_parts:
+                part = part.strip()
+                if part:
+                    lines.append(part)
         for ln in lines:
             hm = CATALOG_HEADER_RE.match(ln)
             hm2 = CATALOG_HEADER_NO_CREDITS_RE.match(ln)
+            hm_mit = MIT_HEADER_RE.match(ln)
 
             if hm:
                 flush()
@@ -97,6 +129,28 @@ def extract_catalog_structure_and_candidates(pages_text: List[str]) -> Tuple[str
 
                 current = {
                     "course_code": f"{subj} {num}",
+                    "subject": subj,
+                    "course_number": num,
+                    "title": title,
+                    "credits_or_units": None,
+                    "description": "",
+                    "prerequisites": None,
+                }
+                current_pages.add(pi)
+                continue
+
+            # MIT-style header: "10.213 Chemical and Biological Engineering Thermodynamics"
+            if hm_mit:
+                flush()
+                code = hm_mit.group("code")
+                title = hm_mit.group("title").strip()
+                # Extract subject (department number) and course number from MIT code
+                mit_parts = code.split(".")
+                subj = mit_parts[0] if mit_parts else code
+                num = mit_parts[1] if len(mit_parts) > 1 else ""
+
+                current = {
+                    "course_code": code,
                     "subject": subj,
                     "course_number": num,
                     "title": title,
