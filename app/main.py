@@ -19,9 +19,8 @@ from fastapi import (
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker, Session
 
-from workflow_logger import log_event
+from app.workflow_logger import log_event
 
-from workflow_logger import log_event
 
 from app.models import (
     Base,
