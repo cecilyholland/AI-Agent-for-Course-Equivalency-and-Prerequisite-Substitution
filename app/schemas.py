@@ -10,10 +10,12 @@ class ReviewIn(BaseModel):
 
 class ReviewerCreateIn(BaseModel):
     reviewerName: Optional[str] = None
+    utcId: str 
 
 class ReviewerOut(BaseModel):
     reviewerId: str
     reviewerName: Optional[str]
+    utcId: str 
     createdAt: datetime
 
 class CaseOut(BaseModel):

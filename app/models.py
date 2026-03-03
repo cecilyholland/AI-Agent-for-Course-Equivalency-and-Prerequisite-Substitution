@@ -139,4 +139,6 @@ class Reviewer(Base):
 
     reviewer_id = Column(UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()"))
     reviewer_name = Column(Text)
+    utc_id = Column(String, nullable=False, unique=True)
+
     created_at = Column(DateTime(timezone=True), nullable=False, server_default=text("NOW()"))
