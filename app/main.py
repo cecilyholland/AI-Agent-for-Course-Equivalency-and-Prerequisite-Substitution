@@ -405,6 +405,7 @@ def create_case(
     files: List[UploadFile] = File(...),
     db: Session = Depends(get_db),
 ):
+    # 1) Create request
     req = Request(
         student_id=studentId,
         student_name=studentName,
@@ -417,11 +418,35 @@ def create_case(
     db.commit()
     db.refresh(req)
 
+    # 2) Assign a reviewer (optional behavior)
     assigned = db.query(Reviewer).order_by(text("RANDOM()")).first()
     if assigned:
         req.assigned_reviewer_id = assigned.reviewer_id
         req.updated_at = now_utc()
+        db.add(req)
+        db.commit()
+        db.refresh(req)
 
+    # 3) Log student attempt (do not break endpoint if logger fails)
+    try:
+        log_event(
+            request_id=str(req.request_id),
+            status=req.status,
+            actor="student",
+            event="StudentAttempt",
+            extra={
+                "student_id": req.student_id,
+                "student_name": req.student_name,
+                "course_requested": req.course_requested,
+                "doc_count": len(files),
+                "filenames": [f.filename for f in files],
+                "assigned_reviewer_id": str(req.assigned_reviewer_id) if req.assigned_reviewer_id else None,
+            },
+        )
+    except Exception:
+        pass
+
+    # 4) Save documents
     for f in files:
         meta = save_upload(f)
         db.add(
@@ -437,9 +462,30 @@ def create_case(
             )
         )
 
-    db.commit()
-    return case_to_out(req)
+    # 5) Queue extraction run
+    db.add(
+        ExtractionRun(
+            request_id=req.request_id,
+            status="queued",
+            created_at=now_utc(),
+        )
+    )
 
+    # 6) Log extraction queued
+    try:
+        log_event(
+            request_id=str(req.request_id),
+            status=req.status,
+            actor="system",
+            event="ExtractionQueued",
+            extra={"queue_reason": "new_case"},
+        )
+    except Exception:
+        pass
+
+    db.commit()
+    db.refresh(req)
+    return case_to_out(req)
 
 @app.get("/api/cases/{caseId}", response_model=CaseDetailOut)
 def get_case(caseId: str, db: Session = Depends(get_db)):
@@ -492,74 +538,6 @@ def get_case(caseId: str, db: Session = Depends(get_db)):
         auditLog=build_audit_log(db, case_uuid),
     )
 
-
-@app.post("/api/cases", response_model=CaseOut)
-def create_case(
-    studentId: str = Form(...),
-    studentName: Optional[str] = Form(None),
-    courseRequested: Optional[str] = Form(None),
-    files: List[UploadFile] = File(...),
-    db: Session = Depends(get_db),
-):
-    req = Request(
-        student_id=studentId,
-        student_name=studentName,
-        course_requested=courseRequested,
-        status="uploaded",
-        created_at=now_utc(),
-        updated_at=now_utc(),
-    )
-    db.add(req)
-    db.commit()
-    db.refresh(req)
-
-    log_event(
-    request_id=str(req.request_id),
-    status=req.status,
-    actor="student",
-    event="StudentAttempt",
-    extra={
-        "student_id": req.student_id,
-        "student_name": req.student_name,
-        "course_requested": req.course_requested,
-        "doc_count": len(files),
-        "filenames": [f.filename for f in files],
-    },
-    )
-
-    for f in files:
-        meta = save_upload(f)
-        db.add(
-            Document(
-                request_id=req.request_id,
-                filename=meta["filename"],
-                content_type=meta["content_type"],
-                sha256=meta["sha256"],
-                storage_uri=meta["storage_uri"],
-                size_bytes=meta["size_bytes"],
-                is_active=True,
-                created_at=now_utc(),
-            )
-        )
-
-    db.add(
-        ExtractionRun(
-            request_id=req.request_id,
-            status="queued",
-            created_at=now_utc(),
-        )
-    )
-
-    log_event(
-    request_id=str(req.request_id),
-    status=req.status,
-    actor="system",
-    event="ExtractionQueued",
-    extra={"queue_reason": "new_case"},
-    )
-
-    db.commit()
-    return case_to_out(req)
 
 
 @app.post("/api/cases/{caseId}/documents", response_model=CaseOut)
@@ -1405,6 +1383,7 @@ def list_reviewers(db: Session = Depends(get_db)):
         ReviewerOut(
             reviewerId=str(r.reviewer_id),
             reviewerName=r.reviewer_name,
+            utc_id=r.utcId,
             createdAt=r.created_at,
         )
         for r in reviewers
@@ -1414,6 +1393,7 @@ def list_reviewers(db: Session = Depends(get_db)):
 def create_reviewer(body: ReviewerCreateIn, db: Session = Depends(get_db)):
     r = Reviewer(
         reviewer_name=body.reviewerName,
+        utc_id=body.utcId,   
         created_at=now_utc(),
     )
     db.add(r)
@@ -1423,6 +1403,7 @@ def create_reviewer(body: ReviewerCreateIn, db: Session = Depends(get_db)):
     return {
         "reviewerId": str(r.reviewer_id),
         "reviewerName": r.reviewer_name,
+        "utcId": r.utc_id,
         "createdAt": r.created_at,
     }
 
@@ -1440,5 +1421,6 @@ def get_reviewer(reviewerId: str, db: Session = Depends(get_db)):
     return ReviewerOut(
         reviewerId=str(r.reviewer_id),
         reviewerName=getattr(r, "reviewer_name", None),
+        utcId=r.utc_id,  
         createdAt=r.created_at,
     )
