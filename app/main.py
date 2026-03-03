@@ -61,6 +61,7 @@ from decision_engine.contracts import (
 DATABASE_URL = os.environ["DATABASE_URL"]  
 print("DATABASE_URL =", DATABASE_URL)
 
+
 # needs this for auto-integration
 DECISION_ENGINE_URL = os.getenv("DECISION_ENGINE_URL")  
 DECISION_ENGINE_TIMEOUT_SECS = float(os.getenv("DECISION_ENGINE_TIMEOUT_SECS", "30"))
@@ -1430,22 +1431,18 @@ def generate_decision_packet(engine_result) -> dict:
             for g in (engine_result.gaps or [])
         ],
         "missing_info_requests": list(engine_result.missing_info_requests or []),
-        "citations": [],  # Cecily will populate later via grounding
+        "citations": [],  
     }
 
 @app.get("/api/reviewers", response_model=list[ReviewerOut])
 def list_reviewers(db: Session = Depends(get_db)):
-    reviewers = (
-        db.query(Reviewer)
-        .order_by(Reviewer.created_at.desc())
-        .all()
-    )
+    reviewers = db.query(Reviewer).order_by(Reviewer.created_at.desc()).all()
 
     return [
         ReviewerOut(
             reviewerId=str(r.reviewer_id),
             reviewerName=r.reviewer_name,
-            utc_id=r.utcId,
+            utcId=r.utc_id,          
             createdAt=r.created_at,
         )
         for r in reviewers
@@ -1455,7 +1452,7 @@ def list_reviewers(db: Session = Depends(get_db)):
 def create_reviewer(body: ReviewerCreateIn, db: Session = Depends(get_db)):
     r = Reviewer(
         reviewer_name=body.reviewerName,
-        utc_id=body.utcId,   
+        utc_id=body.utcId,  
         created_at=now_utc(),
     )
     db.add(r)
