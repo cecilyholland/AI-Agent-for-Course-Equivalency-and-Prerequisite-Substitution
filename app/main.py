@@ -355,6 +355,22 @@ def run_decision_for_case_and_run(
 
             case.status = "needs_info"
             case.updated_at = now_utc()
+
+            log_event(
+                event="AgentSuggestion",
+                request_id=str(case.request_id),
+                actor="agent",
+                status="needs_info",
+                step="decision",
+                extra={
+                    "suggestion_flag": "needs_more_info",
+                    "decision_run_id": str(decision_run.decision_run_id),
+                    "extraction_run_id": str(extraction_run_id),
+                    "missing_info_requests": missing,
+                    "inputs_hash": packet_hash,
+                },
+            )
+
             return decision_run.decision_run_id
 
         # Run engine
@@ -382,6 +398,24 @@ def run_decision_for_case_and_run(
         case.status = "needs_info" if needs_more_info else "ai_recommendation"
         case.updated_at = now_utc()
 
+        result_dict = engine_result.model_dump()
+        suggestion_flag = (result_dict.get("decision") or "").lower()
+        next_status = "needs_info" if needs_more_info else "ai_recommendation"
+
+        log_event(
+            event="AgentSuggestion",
+            request_id=str(case.request_id),
+            actor="agent",
+            status=next_status,
+            step="decision",
+            extra={
+                "suggestion_flag": suggestion_flag,
+                "decision_run_id": str(decision_run.decision_run_id),
+                "extraction_run_id": str(extraction_run_id),
+                "inputs_hash": packet_hash,
+            },
+        )
+
         return decision_run.decision_run_id
 
     except Exception as ex:
@@ -394,6 +428,20 @@ def run_decision_for_case_and_run(
         case.updated_at = now_utc()
 
         # IMPORTANT: do not raise; commit failure state
+
+        log_event(
+            event="AgentRunFailed",
+            request_id=str(case.request_id),
+            actor="agent",
+            status="needs_info",
+            step="decision",
+            extra={
+                "decision_run_id": str(decision_run.decision_run_id),
+                "extraction_run_id": str(extraction_run_id),
+                "error": str(ex),
+            },
+        )
+
         return decision_run.decision_run_id
     
 # FRONTEND ROUTES
@@ -497,6 +545,20 @@ def get_case(caseId: str, db: Session = Depends(get_db)):
     req = db.query(Request).filter(Request.request_id == case_uuid).first()
     if not req:
         raise HTTPException(status_code=404, detail="Case not found")
+
+    log_event(
+        event="ReviewerAccessedCase",
+        request_id=str(req.request_id),
+        actor="reviewer",
+        status=req.status,
+        step="review",
+        extra={
+            "access_type": "view_case",
+            "assigned_reviewer_id": str(req.assigned_reviewer_id) if req.assigned_reviewer_id else None,
+            "student_id": req.student_id,
+            "course_requested": req.course_requested,
+        },
+    )
 
     docs = (
         db.query(Document)
