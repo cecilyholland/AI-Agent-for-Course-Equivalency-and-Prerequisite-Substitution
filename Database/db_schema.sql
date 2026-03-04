@@ -216,9 +216,10 @@ CREATE INDEX idx_review_actions_action ON review_actions(action);
 
 -- demo-only reviewers table (minimal)
 CREATE TABLE reviewers (
-  reviewer_id   UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  reviewer_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   reviewer_name TEXT,
-  created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  utc_id TEXT NOT NULL UNIQUE,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT now()
 );
 -- link requests to reviewers 
 -- assign a reviewer to a case (optional but needed for "random assignment" demo)
