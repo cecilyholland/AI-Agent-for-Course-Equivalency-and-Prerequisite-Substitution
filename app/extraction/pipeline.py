@@ -17,6 +17,8 @@ from .chunking import Chunk, chunk_page_text
 from .syllabus_parser import extract_syllabus_facts
 from .catalog_parser import extract_catalog_structure_and_candidates, match_candidates_to_target
 from dotenv import load_dotenv
+
+from app.security.prompt_injection_defense import PromptInjectionDefense, Decision
 load_dotenv()
 
 DATABASE_URL = os.getenv("DATABASE_URL")
@@ -326,6 +328,25 @@ def run_extraction(request_id: str, output_dir: str = "Data/Processed/manifests"
                     output_dir=output_dir,
                     prefer_ocr=True,
                 )
+
+                # Insert Prompt Injection Defense
+                scan = PromptInjectionDefense(
+                    enable_vigil=False,
+                    reject_threshold=int(os.getenv("PROMPT_INJECTION_REJECT_THRESHOLD", "7")),
+                ).scan_pages(pages_text)
+
+                if scan.decision == Decision.REJECT:
+                    top = [f.match for f in scan.findings[:5]]
+                    raise RuntimeError(
+                        "Prompt injection detected"
+                        f" doc_id={doc_id}"
+                        f" filename={filename}"
+                        f" score={scan.total_score}"
+                        f" top_matches={top}"
+                    )
+
+
+
                 if warning:
                     manifest["warnings"].append(warning)
 
