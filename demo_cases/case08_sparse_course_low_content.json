@@ -1,0 +1,6 @@
+{
+  "facts": [
+    {"factType":"course","factKey":"credits","factValue":"1","unknown":false},
+    {"factType":"course","factKey":"topics","factJson":{"items":["intro programming"]},"unknown":false}
+  ]
+}

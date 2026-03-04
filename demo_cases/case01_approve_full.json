@@ -1,0 +1,11 @@
+{
+  "facts": [
+    {"factType":"course","factKey":"credits","factValue":"3","unknown":false},
+    {"factType":"course","factKey":"topics","factJson":{"items":["trees","graphs","hashing"]},"unknown":false},
+    {"factType":"course","factKey":"outcomes","factJson":{"items":["Implement common data structures","Analyze time complexity"]},"unknown":false},
+    {"factType":"course","factKey":"assessments","factJson":{"items":["Midterm","Final","Programming assignments"]},"unknown":false},
+    {"factType":"course","factKey":"contact_hours_lecture","factValue":"45","unknown":false},
+    {"factType":"course","factKey":"contact_hours_lab","factValue":"0","unknown":false},
+    {"factType":"course","factKey":"lab_component","factValue":"false","unknown":false}
+  ]
+}

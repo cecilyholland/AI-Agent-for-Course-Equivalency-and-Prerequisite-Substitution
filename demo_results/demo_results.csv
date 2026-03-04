@@ -1,0 +1,12 @@
+payload,case_id,extraction_run_id,decision_run_id,case_status,decision,equivalency_score,confidence,needs_more_info
+case01_approve_full.json,c2e50fd5-1930-43ff-8b9f-725257517a56,aab21037-3fae-4b99-b9d6-7a14f9af14c9,83e9eb1b-f815-4908-afe4-a2889f0b2a8f,ai_recommendation,APPROVE,80,MEDIUM,False
+case02_needs_info_missing_credits.json,1db28d84-eaed-4907-baca-d51302a042bb,1985ffef-bc70-427b-b964-00874c648642,38e09e7b-b4e1-49b9-94e0-ebd09f40b2e5,needs_info,NEEDS_MORE_INFO,,LOW,True
+case03_needs_info_missing_topics_and_outcomes.json,98e5a327-2297-4b11-ad1c-353074f3bde9,fc2bdea5-3bfd-4239-a4c3-db7b912123d5,778a1b2b-9e85-4d8c-92ee-9df328774674,needs_info,NEEDS_MORE_INFO,,LOW,True
+case04_approve_topics_only.json,55f99ba1-7aba-4fee-b636-a9604ce68cf5,a6faf510-855b-42f3-9ef6-b2b03ad9311c,c8aa8eed-d638-46d3-b181-8987c4c492e1,ai_recommendation,DENY,30,LOW,False
+case05_approve_outcomes_only.json,b895ffd7-9df6-4097-8209-060c00dd59ee,f6442370-3ce3-406a-b132-a1b63d01370b,404aaeb4-376d-4a72-9971-3c52e7d1c3e1,ai_recommendation,DENY,30,LOW,False
+case06_lab_course.json,350f551d-b326-46d8-99eb-7fd5b9390128,b88e64b3-e9ce-46db-abd9-d1a3fe8283ba,a4272c78-d944-442d-b64f-b1d00762adbe,ai_recommendation,DENY,20,MEDIUM,False
+case07_prompt_injection_example.json,06dec310-2a74-401c-91d9-1eba45b0e298,2c2e250b-3693-419a-88c5-3e586327db8e,e2b6b74b-1e56-4f1e-aeea-c1da7e8585a0,ai_recommendation,DENY,30,LOW,False
+case08_sparse_course_low_content.json,8f606346-18ab-4def-8997-bddbf9b20466,29e766c2-fe2c-4404-8562-e0f0fde5e716,62ca8d1f-6c4d-4d2a-aac8-c356261107b3,ai_recommendation,DENY,10,LOW,False
+case09_all_unknown.json,141603b0-60f0-437a-849e-44a5e65ea505,1eec8130-4184-4abc-a6b3-792dcc0865a2,3743cb7b-1b5b-4fb6-b00e-ba63483620df,needs_info,NEEDS_MORE_INFO,,LOW,True
+case10_bridge_candidate.json,4e091a28-afaa-4ad4-942c-1c899f71f31c,87fd8ce6-3b64-4311-b7ec-7d86474eb6ef,e97531dd-be80-415c-b525-cfea2a52c4f2,ai_recommendation,DENY,20,MEDIUM,False
+case11_approve_with bridge.json,12a62405-2e6c-4a75-b234-cb24b1f53f92,3e33dbec-d9b0-4520-ac87-c570dca12e2c,22c1b6f0-018c-4c7f-a8fe-94370324a351,ai_recommendation,APPROVE_WITH_BRIDGE,70,MEDIUM,False

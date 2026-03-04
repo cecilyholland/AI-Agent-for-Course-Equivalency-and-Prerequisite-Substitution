@@ -1,0 +1,9 @@
+{
+  "facts": [
+    {"factType":"course","factKey":"credits","factValue":"4","unknown":false},
+    {"factType":"course","factKey":"topics","factJson":{"items":["circuits","digital logic"]},"unknown":false},
+    {"factType":"course","factKey":"lab_component","factValue":"true","unknown":false},
+    {"factType":"course","factKey":"contact_hours_lab","factValue":"30","unknown":false},
+    {"factType":"course","factKey":"contact_hours_lecture","factValue":"30","unknown":false}
+  ]
+}
