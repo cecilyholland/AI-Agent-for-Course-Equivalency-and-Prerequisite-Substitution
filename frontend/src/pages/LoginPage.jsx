@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../services/auth";
+import { fetchReviewers } from "../services/api";
 import "./LoginPage.css";
 
 export default function LoginPage() {
@@ -9,8 +10,9 @@ export default function LoginPage() {
   const [utcId, setUtcId] = useState("");
   const [role, setRole] = useState("student");
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
 
-  const handleLogin = (e) => {
+  const handleLogin = async (e) => {
     e.preventDefault();
     const trimmed = utcId.trim();
     if (!trimmed) {
@@ -21,8 +23,21 @@ export default function LoginPage() {
       loginAsStudent(trimmed);
       navigate(`/student/${trimmed}`);
     } else {
-      loginAsReviewer(trimmed);
-      navigate("/reviewer");
+      setLoading(true);
+      try {
+        const reviewers = await fetchReviewers();
+        const match = reviewers.find((r) => r.utcId === trimmed);
+        if (!match) {
+          setError("Reviewer ID not found. Contact your administrator.");
+          return;
+        }
+        loginAsReviewer(trimmed, match.reviewerId);
+        navigate("/reviewer");
+      } catch {
+        setError("Could not verify reviewer. Is the backend running?");
+      } finally {
+        setLoading(false);
+      }
     }
   };
 
@@ -78,8 +93,8 @@ export default function LoginPage() {
           {error && <p className="login-error">{error}</p>}
           <p className="login-format-hint">* Indicates required fields</p>
 
-          <button className="login-btn" type="submit">
-            LOGIN
+          <button className="login-btn" type="submit" disabled={loading}>
+            {loading ? "Verifying..." : "LOGIN"}
           </button>
         </form>
       </div>

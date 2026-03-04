@@ -7,8 +7,9 @@ function mapCaseOut(c) {
     id: c.caseId,
     studentId: c.studentId,
     studentName: c.studentName,
+    assignedReviewerId: c.assignedReviewerId || null,
     courseRequested: c.courseRequested,
-    status: c.status === "AI_RECOMMMENDATION" ? "AI_RECOMMENDATION" : c.status,
+    status: (c.status || "").toUpperCase(),
     createdAt: c.createdAt,
     updatedAt: c.updatedAt,
   };
@@ -57,11 +58,10 @@ function mapCaseDetail(data) {
   const latestInfoRequest = [...reviewActions].reverse().find((a) => a.action === "request_info");
   const latestDecision = [...reviewActions].reverse().find((a) => a.action === "approve" || a.action === "deny");
 
-  let displayStatus = c.status;
-  if (c.status === "REVIEWED" && latestDecision) {
+  let displayStatus = (c.status || "").toUpperCase();
+  if (displayStatus === "REVIEWED" && latestDecision) {
     displayStatus = latestDecision.action === "approve" ? "APPROVED" : "DENIED";
   }
-  if (displayStatus === "AI_RECOMMMENDATION") displayStatus = "AI_RECOMMENDATION";
 
   return {
     id: c.caseId,
@@ -72,7 +72,7 @@ function mapCaseDetail(data) {
     createdAt: c.createdAt,
     updatedAt: c.updatedAt,
     documents: (data.documents || []).map(mapDocument),
-    decisionPacket: data.decisionPacket,
+    evidencePacket: data.evidencePacket,
     logs: buildLogs(data.auditLog),
     reviewerComment: latestInfoRequest?.comment || null,
     reviewerDecision: latestDecision?.action || null,
@@ -124,6 +124,14 @@ export async function submitAdditionalInfo(caseId, files) {
   if (!res.ok) throw new Error("Failed to upload documents");
   const data = await res.json();
   return mapCaseOut(data);
+}
+
+// --- reviewer lookup ---
+
+export async function fetchReviewers() {
+  const res = await fetch(`${API_BASE}/reviewers`);
+  if (!res.ok) throw new Error("Failed to fetch reviewers");
+  return res.json(); // [{ reviewerId, reviewerName, utcId, createdAt }]
 }
 
 // --- reviewer actions ---
