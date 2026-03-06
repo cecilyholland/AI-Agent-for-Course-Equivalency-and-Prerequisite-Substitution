@@ -1,12 +1,14 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { fetchAllCases } from "../services/api";
+import { useAuth } from "../services/auth";
 import StatusBadge from "../components/StatusBadge";
 import "./ReviewerDashboard.css";
 
-const PENDING_STATUSES = ["REVIEW_PENDING", "AI_RECOMMENDATION"];
+const PENDING_STATUSES = ["REVIEW_PENDING", "AI_RECOMMENDATION", "READY_FOR_DECISION"];
 
 export default function ReviewerDashboard() {
+  const { user } = useAuth();
   const [activeFilter, setActiveFilter] = useState("ALL");
   const [allCases, setAllCases] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -15,7 +17,8 @@ export default function ReviewerDashboard() {
   useEffect(() => {
     fetchAllCases()
       .then((data) => {
-        setAllCases(data);
+        const mine = data.filter((c) => !c.assignedReviewerId || c.assignedReviewerId === user.reviewerId);
+        setAllCases(mine);
         setLoading(false);
       })
       .catch((err) => {

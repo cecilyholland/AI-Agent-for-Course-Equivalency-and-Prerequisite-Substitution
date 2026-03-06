@@ -140,7 +140,7 @@ export async function submitReviewerDecision(caseId, action, comment, reviewerId
   const res = await fetch(`${API_BASE}/cases/${caseId}/review`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ action, comment, reviewerId }),
+    body: JSON.stringify({ action, comment: comment || "No comment provided.", reviewerId }),
   });
   if (!res.ok) throw new Error("Failed to submit review");
   const data = await res.json();

@@ -57,10 +57,14 @@ export default function ReviewerCaseReview() {
   }
 
   const handleAction = async (action, comment) => {
-    await submitReviewerDecision(id, action, comment, user.reviewerId);
-    const [updated, updatedDecision] = await Promise.all([fetchCase(id), fetchDecisionResult(id)]);
-    setCaseData(updated);
-    setDecisionResult(updatedDecision);
+    try {
+      await submitReviewerDecision(id, action, comment, user.reviewerId);
+      const [updated, updatedDecision] = await Promise.all([fetchCase(id), fetchDecisionResult(id)]);
+      setCaseData(updated);
+      setDecisionResult(updatedDecision);
+    } catch (err) {
+      setError(err.message);
+    }
   };
 
   const formatDate = (dateStr) => {
