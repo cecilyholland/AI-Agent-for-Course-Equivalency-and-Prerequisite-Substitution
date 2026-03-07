@@ -318,10 +318,14 @@ def decide(packet: DecisionInputsPacket) -> DecisionResult:
     ])
     if decision == Decision.NEEDS_MORE_INFO:
         confidence = Confidence.LOW
-    elif unknown_count == 0 and (score >= policy.approve_threshold + 10 or score <= policy.bridge_threshold - 10):
-        confidence = Confidence.HIGH
-    elif unknown_count <= 1:
+    elif unknown_count >= 2:
+        confidence = Confidence.LOW
+    elif decision == Decision.APPROVE:
+        confidence = Confidence.HIGH if score >= policy.approve_threshold + 10 else Confidence.MEDIUM
+    elif decision == Decision.APPROVE_WITH_BRIDGE:
         confidence = Confidence.MEDIUM
+    elif decision == Decision.DENY:
+        confidence = Confidence.MEDIUM if unknown_count <= 1 else Confidence.LOW
     else:
         confidence = Confidence.LOW
 
