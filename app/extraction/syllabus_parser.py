@@ -56,14 +56,35 @@ def extract_syllabus_facts(pages_text: list[str]) -> Dict[str, Optional[str]]:
         if cleaned and len(cleaned) <= 140:
             facts["title"] = cleaned
 
-    # Credits/units
+    # Credits/units — try multiple formats in order
     credit_line = re.search(r"\b(\d+)\s*Credit Hour", text_all, re.IGNORECASE)
     if credit_line:
         facts["credits_or_units"] = credit_line.group(1)
 
-    units_line = re.search(r"\bUnits?\b\s*[:\-]?\s*(\d+)", text_all, re.IGNORECASE)
-    if units_line and not facts["credits_or_units"]:
-        facts["credits_or_units"] = units_line.group(1)
+    if not facts["credits_or_units"]:
+        credit_hours_after = re.search(r"Credit Hours?\s+(\d+)", text_all, re.IGNORECASE)
+        if credit_hours_after:
+            facts["credits_or_units"] = credit_hours_after.group(1)
+
+    if not facts["credits_or_units"]:
+        units_line = re.search(r"\bUnits?\b\s*[:\-]?\s*(\d+)", text_all, re.IGNORECASE)
+        if units_line:
+            facts["credits_or_units"] = units_line.group(1)
+
+    if not facts["credits_or_units"]:
+        course_credits = re.search(r"Course Credits?\s*[:\-]?\s*(\d+)", text_all, re.IGNORECASE)
+        if course_credits:
+            facts["credits_or_units"] = course_credits.group(1)
+
+    if not facts["credits_or_units"]:
+        credits_colon = re.search(r"\bCredits?\s*[:\-]\s*(\d+)", text_all, re.IGNORECASE)
+        if credits_colon:
+            facts["credits_or_units"] = credits_colon.group(1)
+
+    if not facts["credits_or_units"]:
+        credits_parens = re.search(r"\((\d+)\s*credits?\)", text_all, re.IGNORECASE)
+        if credits_parens:
+            facts["credits_or_units"] = credits_parens.group(1)
 
     # Description section
     desc = None

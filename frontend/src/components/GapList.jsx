@@ -10,8 +10,8 @@ function GapList({ gaps }) {
     <div className="gap-list">
       {gaps.map((gap, index) => (
         <div className="gap-item" key={index}>
-          <span className={`gap-severity-badge gap-severity-badge--${gap.severity}`}>
-            {gap.severity.replace("_", " ")}
+          <span className={`gap-severity-badge gap-severity-badge--${gap.severity || "unknown"}`}>
+            {gap.severity ? gap.severity.replace("_", " ") : "gap"}
           </span>
           <div className="gap-content">
             <p className="gap-text">{gap.text}</p>

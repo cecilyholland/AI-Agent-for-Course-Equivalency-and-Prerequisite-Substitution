@@ -27,9 +27,9 @@ function getScoreColor(score) {
 }
 
 function DecisionSummaryCard({ result }) {
-  const { decision, equivalency_score, confidence } = result;
+  const { decision, equivalencyScore, confidence } = result;
   const decisionColor = decisionColorMap[decision];
-  const scoreColor = getScoreColor(equivalency_score);
+  const scoreColor = getScoreColor(equivalencyScore);
   const confidenceColor = confidenceColorMap[confidence];
 
   return (
@@ -61,7 +61,7 @@ function DecisionSummaryCard({ result }) {
             className="decision-summary-card__score-number"
             style={{ color: scoreColor }}
           >
-            {equivalency_score}
+            {equivalencyScore}
           </span>
           <span className="decision-summary-card__score-total">/100</span>
         </div>
@@ -69,7 +69,7 @@ function DecisionSummaryCard({ result }) {
           <div
             className="decision-summary-card__score-bar-fill"
             style={{
-              width: `${equivalency_score}%`,
+              width: `${equivalencyScore}%`,
               backgroundColor: scoreColor,
             }}
           />

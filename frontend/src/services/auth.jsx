@@ -9,8 +9,8 @@ export function AuthProvider({ children }) {
     setUser({ role: "student", studentId: utcId, utcId });
   };
 
-  const loginAsReviewer = (utcId) => {
-    setUser({ role: "reviewer", studentId: null, utcId });
+  const loginAsReviewer = (utcId, reviewerId) => {
+    setUser({ role: "reviewer", studentId: null, utcId, reviewerId });
   };
 
   const logout = () => {

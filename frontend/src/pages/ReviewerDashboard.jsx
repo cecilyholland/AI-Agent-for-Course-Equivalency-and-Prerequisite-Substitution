@@ -1,17 +1,36 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { fetchAllCases } from "../services/api";
+import { useAuth } from "../services/auth";
 import StatusBadge from "../components/StatusBadge";
 import "./ReviewerDashboard.css";
 
-const PENDING_STATUSES = ["REVIEW_PENDING", "AI_RECOMMENDATION"];
+const PENDING_STATUSES = ["AI_RECOMMENDATION"];
 
 export default function ReviewerDashboard() {
+  const { user } = useAuth();
   const [activeFilter, setActiveFilter] = useState("ALL");
+  const [allCases, setAllCases] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-  const allCases = fetchAllCases();
+  useEffect(() => {
+    fetchAllCases()
+      .then((cases) => {
+        const filtered = cases.filter(
+          (c) => !c.assignedReviewerId || c.assignedReviewerId === user.reviewerId
+        );
+        setAllCases(filtered);
+        setLoading(false);
+      })
+      .catch((err) => {
+        setError(err.message);
+        setLoading(false);
+      });
+  }, []);
+
   const filteredCases = allCases.filter((c) => {
-    if (activeFilter === "PENDING") {
+    if (activeFilter === "AI_RECOMMENDATION") {
       return PENDING_STATUSES.includes(c.status);
     }
     if (activeFilter === "REVIEWED") {
@@ -19,6 +38,9 @@ export default function ReviewerDashboard() {
     }
     return true;
   });
+
+  if (loading) return <div className="reviewer-dashboard"><p>Loading...</p></div>;
+  if (error) return <div className="reviewer-dashboard"><p>Error: {error}. Is the backend running?</p></div>;
 
   return (
     <div className="reviewer-dashboard">
@@ -32,8 +54,8 @@ export default function ReviewerDashboard() {
           All Cases
         </button>
         <button
-          className={`filter-btn${activeFilter === "PENDING" ? " filter-btn--active" : ""}`}
-          onClick={() => setActiveFilter("PENDING")}
+          className={`filter-btn${activeFilter === "AI_RECOMMENDATION" ? " filter-btn--active" : ""}`}
+          onClick={() => setActiveFilter("AI_RECOMMENDATION")}
         >
           Pending Review
         </button>
@@ -62,8 +84,8 @@ export default function ReviewerDashboard() {
             {filteredCases.map((c) => (
               <tr key={c.id}>
                 <td>{c.id}</td>
-                <td>{c.student_name}</td>
-                <td>{c.course_requested}</td>
+                <td>{c.studentName}</td>
+                <td>{c.courseRequested}</td>
                 <td>
                   <StatusBadge status={c.status} />
                 </td>
