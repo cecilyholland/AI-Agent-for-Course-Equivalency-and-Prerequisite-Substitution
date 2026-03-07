@@ -6,6 +6,7 @@ import uuid
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 import json
+import yaml
 
 from fastapi import (
     FastAPI,
@@ -1316,6 +1317,10 @@ def map_evidence_rows_to_course_evidence(evidence_rows: list[GroundedEvidence]) 
 
     return CourseEvidence(**fields)
 
+def load_policy_config() -> PolicyConfig:
+    with open("policy.yaml", "r", encoding="utf-8") as f:
+        data = yaml.safe_load(f) or {}
+    return PolicyConfig(**data)
 
 def build_contracts_packet(case: Request, evidence_rows: list[GroundedEvidence]) -> DecisionInputsPacket:
     source = map_evidence_rows_to_course_evidence(evidence_rows)
@@ -1327,7 +1332,7 @@ def build_contracts_packet(case: Request, evidence_rows: list[GroundedEvidence])
         required_outcomes=[],
     )
 
-    policy = PolicyConfig(require_topics_or_outcomes=False)
+    policy = load_policy_config()
 
     return DecisionInputsPacket(
         case_id=str(case.request_id),
