@@ -5,7 +5,7 @@ import { useAuth } from "../services/auth";
 import StatusBadge from "../components/StatusBadge";
 import "./ReviewerDashboard.css";
 
-const PENDING_STATUSES = ["REVIEW_PENDING", "AI_RECOMMENDATION", "READY_FOR_DECISION"];
+const PENDING_STATUSES = ["AI_RECOMMENDATION"];
 
 export default function ReviewerDashboard() {
   const { user } = useAuth();
@@ -16,9 +16,11 @@ export default function ReviewerDashboard() {
 
   useEffect(() => {
     fetchAllCases()
-      .then((data) => {
-        const mine = data.filter((c) => !c.assignedReviewerId || c.assignedReviewerId === user.reviewerId);
-        setAllCases(mine);
+      .then((cases) => {
+        const filtered = cases.filter(
+          (c) => !c.assignedReviewerId || c.assignedReviewerId === user.reviewerId
+        );
+        setAllCases(filtered);
         setLoading(false);
       })
       .catch((err) => {
@@ -27,11 +29,8 @@ export default function ReviewerDashboard() {
       });
   }, []);
 
-  if (loading) return <div className="reviewer-dashboard"><h1>Reviewer Dashboard</h1><p>Loading...</p></div>;
-  if (error) return <div className="reviewer-dashboard"><h1>Reviewer Dashboard</h1><p>Error: {error}. Is the backend running?</p></div>;
-
   const filteredCases = allCases.filter((c) => {
-    if (activeFilter === "PENDING") {
+    if (activeFilter === "AI_RECOMMENDATION") {
       return PENDING_STATUSES.includes(c.status);
     }
     if (activeFilter === "REVIEWED") {
@@ -39,6 +38,9 @@ export default function ReviewerDashboard() {
     }
     return true;
   });
+
+  if (loading) return <div className="reviewer-dashboard"><p>Loading...</p></div>;
+  if (error) return <div className="reviewer-dashboard"><p>Error: {error}. Is the backend running?</p></div>;
 
   return (
     <div className="reviewer-dashboard">
@@ -52,8 +54,8 @@ export default function ReviewerDashboard() {
           All Cases
         </button>
         <button
-          className={`filter-btn${activeFilter === "PENDING" ? " filter-btn--active" : ""}`}
-          onClick={() => setActiveFilter("PENDING")}
+          className={`filter-btn${activeFilter === "AI_RECOMMENDATION" ? " filter-btn--active" : ""}`}
+          onClick={() => setActiveFilter("AI_RECOMMENDATION")}
         >
           Pending Review
         </button>

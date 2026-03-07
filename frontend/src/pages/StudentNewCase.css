@@ -10,6 +10,15 @@
   margin-bottom: 16px;
 }
 
+.student-case-view__decision-banner--needs-more-info {
+  background: #fffbeb;
+  border-color: #f59e0b;
+}
+
+.student-case-view__decision-banner--needs-more-info .student-case-view__decision-title {
+  color: #92400e;
+}
+
 .new-case__back:hover {
   color: var(--color-primary);
 }

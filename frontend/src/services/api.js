@@ -167,6 +167,10 @@ function mapDecisionResult(data) {
     gaps: r.gaps || [],
     bridgePlan: r.bridge_plan || [],
     missingInfoRequests: r.missing_info_requests || [],
+    latestReview: data.latestReview ? {
+      reviewerDecision: data.latestReview.reviewerDecision,
+      comment: data.latestReview.comment,
+    } : null,
   };
 }
 

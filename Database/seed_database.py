@@ -103,14 +103,20 @@ def main():
         with db_session() as db:
             assign_case_fields(db, case_uuid, student_name, course_requested, reviewer_id)
 
-        extraction_run_id_str = run_extraction_pipeline(str(case_uuid))
-        extraction_run_uuid = uuid.UUID(extraction_run_id_str)
+        try:
+            extraction_run_id_str = run_extraction_pipeline(str(case_uuid))
+            extraction_run_uuid = uuid.UUID(extraction_run_id_str)
 
-        with db_session() as db:
-            decision_run_id = run_decision_for_case_and_run(db, case_uuid, extraction_run_uuid)
-            db.commit()
+            with db_session() as db:
+                decision_run_id = run_decision_for_case_and_run(db, case_uuid, extraction_run_uuid)
+                db.commit()
 
-        print(f"{student_id}: case={case_uuid} extraction={extraction_run_uuid} decision={decision_run_id}")
+            print(f"{student_id}: case={case_uuid} extraction={extraction_run_uuid} decision={decision_run_id}")
+
+        except Exception as e:
+            import traceback
+            print(f"{student_id}: SKIPPED — {e}")
+            traceback.print_exc()
 
     print("seed complete")
 

@@ -566,7 +566,7 @@ def run_extraction(request_id: str, output_dir: str = "Data/Processed/manifests"
                 manifest_sha256=None,
                 error_message=str(e),
             )
-            _set_request_status(conn, request_id, "needs_info")
+            _set_request_status(conn, request_id, "invalid")
 
         _log(f"Extraction failed. run_id={run_id} error={e}")
         raise

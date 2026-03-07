@@ -57,6 +57,11 @@ export default function StudentCaseView() {
     );
   }
 
+  const reviewerDecision = decisionResult?.latestReview?.reviewerDecision;
+  const isApproved = caseData.status === "APPROVED" || (caseData.status === "REVIEWED" && reviewerDecision === "APPROVE");
+  const isDenied = caseData.status === "DENIED" || (caseData.status === "REVIEWED" && reviewerDecision === "DENY");
+  const needsMoreInfo = caseData.status === "REVIEWED" && reviewerDecision === "NEEDS_MORE_INFO";
+
   return (
     <div className="student-case-view">
       <Link to={`/student/${studentId}`} className="student-case-view__back">
@@ -87,44 +92,35 @@ export default function StudentCaseView() {
         </ul>
       </div>
 
-      {(caseData.status === "APPROVED" || caseData.status === "DENIED") && caseData.reviewerDecision && (
-        <div className={`student-case-view__decision-banner student-case-view__decision-banner--${caseData.reviewerDecision}`}>
+      {(isApproved || isDenied) && (
+        <div className={`student-case-view__decision-banner student-case-view__decision-banner--${isApproved ? "approve" : "deny"}`}>
           <h3 className="student-case-view__decision-title">
-            {caseData.reviewerDecision === "approve"
+            {isApproved
               ? "Your request has been approved"
               : "Your request has been denied"}
           </h3>
-          {caseData.reviewerDecisionComment && (
-            <p className="student-case-view__decision-comment">{caseData.reviewerDecisionComment}</p>
+          {decisionResult?.latestReview?.comment && (
+            <p className="student-case-view__decision-comment">
+              {decisionResult.latestReview.comment}
+            </p>
           )}
         </div>
       )}
 
-      {caseData.status === "NEEDS_INFO" && !uploadedExtra && (
-        <div className="student-case-view__needs-info-alert">
-          <h3 className="student-case-view__needs-info-title">
+      {needsMoreInfo && !uploadedExtra && (
+        <div className="student-case-view__decision-banner student-case-view__decision-banner--needs-more-info">
+          <h3 className="student-case-view__decision-title">
             Additional Information Required
           </h3>
-
-          {caseData.reviewerComment ? (
-            <div className="student-case-view__reviewer-comment">
-              <span className="student-case-view__reviewer-comment-label">Reviewer Comment</span>
-              <p className="student-case-view__reviewer-comment-text">{caseData.reviewerComment}</p>
-            </div>
-          ) : decisionResult && decisionResult.missingInfoRequests && decisionResult.missingInfoRequests.length > 0 && (
-            <div className="student-case-view__reviewer-comment">
-              <span className="student-case-view__reviewer-comment-label">Information Needed</span>
-              <ul className="student-case-view__missing-info-list">
-                {decisionResult.missingInfoRequests.map((item, i) => (
-                  <li key={i}>{item}</li>
-                ))}
-              </ul>
-            </div>
+          {decisionResult?.latestReview?.comment && (
+            <p className="student-case-view__decision-comment">
+              {decisionResult.latestReview.comment}
+            </p>
           )}
-
           {!showUploadForm ? (
             <button
               className="student-case-view__needs-info-btn"
+              style={{ marginTop: "12px" }}
               onClick={() => setShowUploadForm(true)}
             >
               Upload Additional Documents

@@ -11,17 +11,18 @@ CREATE TABLE requests (
   updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   assigned_reviewer_id UUID,
 
-  -- this status tells us what part the system is at
-  status          TEXT NOT NULL CHECK (status IN (
+ status          TEXT NOT NULL CHECK (status IN (
                     'uploaded',
                     'extracting',
                     'ready_for_decision',
                     'needs_info',
                     'ai_recommendation',
                     'review_pending',
-                    'reviewed'
+                    'reviewed',
+                    'invalid'
                   ))
 );
+
 
 -- help filter the request based on status
 CREATE INDEX idx_requests_status ON requests(status);
