@@ -77,6 +77,7 @@ function mapCaseDetail(data) {
     reviewerComment: latestInfoRequest?.comment || null,
     reviewerDecision: latestDecision?.action || null,
     reviewerDecisionComment: latestDecision?.comment || null,
+    decisionRuns: data.auditLog?.decisionRuns || [],
   };
 }
 
@@ -86,7 +87,12 @@ export async function fetchStudentCases(studentId) {
   const res = await fetch(`${API_BASE}/cases?studentId=${studentId}`);
   if (!res.ok) throw new Error("Failed to fetch cases");
   const data = await res.json();
-  return data.map(mapCaseOut);
+
+  const detailed = await Promise.all(
+    data.map((c) => fetch(`${API_BASE}/cases/${c.caseId}`).then((r) => r.json()))
+  );
+
+  return detailed.map(mapCaseDetail);
 }
 
 export async function fetchAllCases() {

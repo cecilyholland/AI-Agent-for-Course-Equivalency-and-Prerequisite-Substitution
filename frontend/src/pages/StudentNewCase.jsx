@@ -1,17 +1,18 @@
 import { useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { submitNewCase } from "../services/api";
 import "./StudentNewCase.css";
 
 export default function StudentNewCase() {
   const navigate = useNavigate();
   const { studentId } = useParams();
 
+  const [studentName, setStudentName] = useState("");
   const [targetCourse, setTargetCourse] = useState("");
   const [previousCourse, setPreviousCourse] = useState("");
   const [previousInstitution, setPreviousInstitution] = useState("");
   const [stagedFiles, setStagedFiles] = useState([]);
   const [submitted, setSubmitted] = useState(false);
+  const [loading, setLoading] = useState(false);
   const [fileError, setFileError] = useState("");
 
   const formatSize = (bytes) => {
@@ -58,20 +59,30 @@ export default function StudentNewCase() {
   };
 
   const handleSubmit = async () => {
+    setLoading(true);
     try {
-      await submitNewCase({
-        studentId,
-        studentName: studentId,
-        courseRequested: targetCourse,
-        files: stagedFiles.map((f) => f.file),
+      const formData = new FormData();
+      formData.append("studentId", studentId);
+      formData.append("studentName", studentName);
+      formData.append("courseRequested", targetCourse);
+      stagedFiles.forEach((f) => formData.append("files", f.file));
+
+      const res = await fetch("/api/cases", {
+        method: "POST",
+        body: formData,
       });
+      if (!res.ok) throw new Error("Failed to create case");
+
       setSubmitted(true);
     } catch (err) {
       console.error(err);
+    } finally {
+      setLoading(false);
     }
   };
 
   const canSubmit =
+    studentName.trim() !== "" &&
     targetCourse.trim() !== "" &&
     previousCourse.trim() !== "" &&
     previousInstitution.trim() !== "" &&
@@ -98,6 +109,7 @@ export default function StudentNewCase() {
               className="new-case__btn new-case__btn--secondary"
               onClick={() => {
                 setSubmitted(false);
+                setStudentName("");
                 setTargetCourse("");
                 setPreviousCourse("");
                 setPreviousInstitution("");
@@ -124,6 +136,22 @@ export default function StudentNewCase() {
       </p>
 
       <section className="new-case__section">
+        <h2 className="new-case__section-title">Personal Information</h2>
+
+        <label className="new-case__label" htmlFor="student-name">
+          Full Name
+        </label>
+        <input
+          id="student-name"
+          className="new-case__input"
+          type="text"
+          placeholder="e.g. Jane Doe"
+          value={studentName}
+          onChange={(e) => setStudentName(e.target.value)}
+        />
+      </section>
+
+      <section className="new-case__section">
         <h2 className="new-case__section-title">Course Information</h2>
 
         <label className="new-case__label" htmlFor="target-course">
@@ -136,24 +164,12 @@ export default function StudentNewCase() {
           onChange={(e) => setTargetCourse(e.target.value)}
         >
           <option value="">Select a course...</option>
-          <option value="CPSC 2100 - Intro to Programming">
-            CPSC 2100 - Intro to Programming
-          </option>
-          <option value="CPSC 3400 - Data Structures">
-            CPSC 3400 - Data Structures
-          </option>
-          <option value="CPSC 3600 - Computer Networks">
-            CPSC 3600 - Computer Networks
-          </option>
-          <option value="CPSC 4100 - Algorithms">
-            CPSC 4100 - Algorithms
-          </option>
-          <option value="CPSC 4500 - Operating Systems">
-            CPSC 4500 - Operating Systems
-          </option>
-          <option value="CPSC 4600 - Database Systems">
-            CPSC 4600 - Database Systems
-          </option>
+          <option value="CPSC 2100 - Intro to Programming">CPSC 2100 - Intro to Programming</option>
+          <option value="CPSC 3400 - Data Structures">CPSC 3400 - Data Structures</option>
+          <option value="CPSC 3600 - Computer Networks">CPSC 3600 - Computer Networks</option>
+          <option value="CPSC 4100 - Algorithms">CPSC 4100 - Algorithms</option>
+          <option value="CPSC 4500 - Operating Systems">CPSC 4500 - Operating Systems</option>
+          <option value="CPSC 4600 - Database Systems">CPSC 4600 - Database Systems</option>
         </select>
 
         <label className="new-case__label" htmlFor="prev-course">
@@ -239,12 +255,12 @@ export default function StudentNewCase() {
       <div className="new-case__submit-area">
         <button
           className="new-case__btn new-case__btn--primary new-case__btn--lg"
-          disabled={!canSubmit}
+          disabled={!canSubmit || loading}
           onClick={handleSubmit}
         >
-          Submit Request
+          {loading ? "Submitting..." : "Submit Request"}
         </button>
-        {!canSubmit && (
+        {!canSubmit && !loading && (
           <p className="new-case__submit-hint">
             Fill in all fields and upload at least one document to submit.
           </p>

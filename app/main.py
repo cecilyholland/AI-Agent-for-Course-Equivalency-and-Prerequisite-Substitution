@@ -240,6 +240,9 @@ def build_audit_log(db: Session, request_id: str) -> Dict[str, Any]:
                 "startedAt": r.started_at,
                 "finishedAt": r.finished_at,
                 "errorMessage": r.error_message,
+                "decision": (
+                    lambda res: res.result_json.get("decision") if res else None
+                )(db.query(DecisionResult).filter(DecisionResult.decision_run_id == r.decision_run_id).first()),
             }
             for r in decision_runs
         ],
@@ -445,6 +448,19 @@ def run_decision_for_case_and_run(
 
         return decision_run.decision_run_id
     
+def run_extraction_and_decision(caseId: str):
+    db = SessionLocal()
+    try:
+        extraction_run_id_str = run_extraction_pipeline(caseId)
+        db.expire_all()
+        case_uuid = uuid.UUID(caseId)
+        req = db.query(Request).filter(Request.request_id == case_uuid).first()
+        if req and req.status == "ready_for_decision":
+            extraction_run_uuid = uuid.UUID(extraction_run_id_str)
+            run_decision_for_case_and_run(db, case_uuid, extraction_run_uuid)
+            db.commit()
+    finally:
+        db.close()
 # FRONTEND ROUTES
 @app.post("/api/cases", response_model=CaseOut)
 def create_case(
@@ -452,6 +468,7 @@ def create_case(
     studentName: Optional[str] = Form(None),
     courseRequested: Optional[str] = Form(None),
     files: List[UploadFile] = File(...),
+    background_tasks: BackgroundTasks = None,
     db: Session = Depends(get_db),
 ):
     # 1) Create request
@@ -534,6 +551,7 @@ def create_case(
 
     db.commit()
     db.refresh(req)
+    background_tasks.add_task(run_extraction_and_decision, str(req.request_id))
     return case_to_out(req)
 
 @app.get("/api/cases/{caseId}", response_model=CaseDetailOut)
