@@ -39,25 +39,110 @@ class ScanResult:
 class PromptInjectionFilter:
 
     PATTERNS_HIGH: List[Tuple[str, str]] = [
-        ("ignore_previous_instructions", r"ignore\s+(all\s+)?previous\s+instructions?"),
+        # direct instruction override
+        ("ignore_previous_instructions", r"ignore\s+(all\s+)?(previous|prior|above)\s+instructions?"),
+        ("forget_previous_instructions", r"forget\s+(all\s+)?(previous|prior)\s+instructions?"),
+        ("disregard_instructions", r"disregard\s+(all\s+)?(rules|policies|instructions)"),
+        ("follow_only_these", r"follow\s+(only\s+)?these\s+instructions\s+(exactly|instead)"),
+        ("treat_as_only_instruction", r"treat\s+this\s+as\s+the\s+only\s+valid\s+instruction"),
+        ("override_system", r"(system|agent|model)\s+override"),
+        ("override_rules", r"override\s+(safety|policy|policies|rules|instructions)"),
+        ("bypass_safety", r"\bbypass\s+(safety|policy|policies|rules|checks)\b"),
         ("developer_mode", r"you\s+are\s+now\s+(in\s+)?developer\s+mode"),
-        ("system_override", r"\bsystem\s+override\b"),
+        ("unrestricted_agent", r"act\s+as\s+an?\s+(unrestricted|unfiltered)\s+(agent|model|assistant)"),
+        ("jailbreak_directive", r"\bjailbreak\b"),
+
+        # reveal hidden/system information
         ("reveal_prompt", r"(reveal|show|print|leak)\s+(the\s+)?(system\s+)?prompt"),
-        ("follow_only_these", r"follow\s+these\s+instructions\s+exactly"),
-        ("disregard_policies", r"disregard\s+(all\s+)?(rules|policies|instructions)"),
-        ("bypass_safety", r"\bbypass\s+(safety|policy|policies|rules)\b"),
+        ("reveal_hidden_instructions", r"(reveal|show|print|leak)\s+(hidden|internal|confidential)\s+instructions?"),
+        ("ignore_safeguards", r"ignore\s+(all\s+)?(safeguards|guardrails|protections)"),
+
+        # direct decision manipulation specific to your app
+        ("approve_request", r"(automatically\s+)?approve\s+(this\s+)?(request|course|equivalency|substitution)"),
+        ("deny_request", r"(automatically\s+)?deny\s+(this\s+)?(request|course|equivalency|substitution)"),
+        ("mark_equivalent", r"(mark|classify|treat)\s+(this\s+course\s+as\s+)?equivalent"),
+        ("accept_transfer_credit", r"(accept|grant)\s+(this\s+)?transfer\s+credit"),
+        ("grant_prereq_substitution", r"(grant|approve)\s+(this\s+)?prerequisite\s+substitution"),
+        ("approve_with_bridge", r"approve\s+with\s+bridge"),
+        ("no_review_needed", r"(no\s+further\s+review\s+is\s+needed|reviewer\s+should\s+approve|committee\s+should\s+accept)"),
+        ("set_decision_approve", r"(set|return|output)\s+(the\s+)?decision\s+to\s+approve"),
+        ("set_decision_deny", r"(set|return|output)\s+(the\s+)?decision\s+to\s+deny"),
+        ("set_status_approved", r"set\s+(the\s+)?status\s+to\s+approved"),
     ]
 
     PATTERNS_MEDIUM: List[Tuple[str, str]] = [
-        ("jailbreak", r"\bjailbreak\b"),
+        # prompt-injection terminology
         ("prompt_injection_term", r"\bprompt\s+injection\b"),
         ("system_prompt_term", r"\bsystem\s+prompt\b"),
         ("developer_message_term", r"\bdeveloper\s+message\b"),
-        ("override_rules", r"override\s+(safety|policy|policies|rules)"),
+        ("hidden_prompt_term", r"\bhidden\s+prompt\b"),
+
+        # output coercion
+        ("output_only", r"(output|respond|return)\s+only\s+['\"]?(approve|deny|needs\s+more\s+info|approve\s+with\s+bridge)['\"]?"),
         ("do_not_explain", r"do\s+not\s+(explain|justify|mention)"),
+        ("only_final_answer", r"(provide|give)\s+only\s+the\s+final\s+answer"),
+
+        # decision language that is suspicious in context
+        ("recommend_approval", r"recommend\s+(approval|approve)"),
+        ("recommend_denial", r"recommend\s+(denial|deny)"),
+        ("count_as_equivalent", r"count\s+(this\s+course\s+)?as\s+equivalent"),
+        ("meets_requirement", r"(treat|consider)\s+this\s+as\s+meeting\s+the\s+requirement"),
+        ("auto_accept", r"(auto|automatic|automatically)\s+(accept|approve)"),
     ]
 
-    FUZZY_KEYWORDS: List[str] = ["ignore", "bypass", "override", "reveal", "system", "prompt"]
+    FUZZY_KEYWORDS: List[str] = [
+        # core control words
+        "ignore",
+        "bypass",
+        "override",
+        "reveal",
+        "system",
+        "prompt",
+        "instruction",
+        "directive",
+        "policy",
+
+        # decision manipulation words
+        "approve",
+        "deny",
+        "accept",
+        "reject",
+        "decision",
+        "reviewer",
+        "equivalent",
+        "equivalency",
+        "substitution",
+        "automatic",
+        "automatically",
+        "grant",
+    ]
+
+    TRIGGER_WORDS: List[str] = [
+            "ignore",
+            "override",
+            "bypass",
+            "reveal",
+            "prompt",
+            "developer",
+            "directive",
+            "instruction",
+            "instructions",
+            "reviewer",
+            "committee",
+            "advisor",
+            "approve",
+            "deny",
+            "accept",
+            "reject",
+            "decision",
+            "automatic",
+            "automatically",
+            "grant",
+            "hidden",
+            "confidential",
+            "internal",
+            "privileged",
+        ]
 
 
 # Collapse whitespace/newlines and tame long repetition
@@ -79,7 +164,12 @@ class PromptInjectionFilter:
         return hits
 
 
-# Return list of (word, target) for typoglycemia variants
+    def trigger_word_hits(self, text: str) -> List[str]:
+        words = re.findall(r"\b\w+\b", (text or "").lower())
+        word_set = set(words)
+        return sorted([w for w in self.TRIGGER_WORDS if w in word_set])
+
+
     def typoglycemia_hits(self, text: str) -> List[Tuple[str, str]]:
         hits: List[Tuple[str, str]] = []
         words = re.findall(r"\b\w+\b", (text or "").lower())
@@ -131,11 +221,13 @@ class PromptInjectionDefense:
         *,
         enable_vigil: bool = False,
         vigil_config_path: Optional[str] = None,
-        reject_threshold: int = 7,
+        reject_threshold: int = 10,
         points_high_regex: int = 5,
         points_medium_regex: int = 3,
         points_typoglycemia: int = 2,
+        points_trigger_word: int = 1,
         points_multi_hit_bonus: int = 2,
+        max_trigger_hits_per_page: int = 10,
         max_findings: int = 50,
     ) -> None:
         self.filter = PromptInjectionFilter()
@@ -144,7 +236,9 @@ class PromptInjectionDefense:
         self.points_high_regex = int(points_high_regex)
         self.points_medium_regex = int(points_medium_regex)
         self.points_typoglycemia = int(points_typoglycemia)
+        self.points_trigger_word = int(points_trigger_word)
         self.points_multi_hit_bonus = int(points_multi_hit_bonus)
+        self.max_trigger_hits_per_page = int(max_trigger_hits_per_page)
         self.max_findings = int(max_findings)
 
         self.vigil: Optional[VigilAdapter] = None
@@ -181,6 +275,34 @@ class PromptInjectionDefense:
                         match=name,
                         snippet=scan_text[:180],
                         detail={"pattern": pat},
+                    )
+                )
+                if len(findings) >= self.max_findings:
+                    break
+
+            if len(findings) >= self.max_findings:
+                per_page_points[page_num] = page_points
+                break
+
+
+                        # 2) Trigger-word hits (low severity)
+            trigger_hits = self.filter.trigger_word_hits(scan_text)[: self.max_trigger_hits_per_page]
+            for trig in trigger_hits:
+                detected_any = True
+                page_signals += 1
+
+                pts = self.points_trigger_word
+                page_points += pts
+
+                findings.append(
+                    Finding(
+                        detector="trigger_word",
+                        page_num=page_num,
+                        severity="low",
+                        points=pts,
+                        match=trig,
+                        snippet=scan_text[:180],
+                        detail={},
                     )
                 )
                 if len(findings) >= self.max_findings:
@@ -273,7 +395,7 @@ class PromptInjectionDefense:
         total_score = sum(per_page_points.values())
         decision = Decision.REJECT if total_score >= self.reject_threshold else Decision.ALLOW
 
-        detected = detected_any or any(f.detector in ("regex", "typoglycemia", "vigil") for f in findings)
+        detected = detected_any or any(f.detector in ("regex", "trigger_word", "typoglycemia", "vigil") for f in findings)
 
         return ScanResult(
             detected=detected,
