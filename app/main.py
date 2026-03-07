@@ -1374,7 +1374,7 @@ def generate_decision_packet(engine_result) -> dict:
 
     if decision == "APPROVE":
         why = "The source course meets the credit and content requirements under the current policy."
-    elif decision == "BRIDGE":
+    elif decision == "APPROVE_WITH_BRIDGE":
         why = "The source course is close to equivalent but requires bridging requirements."
     elif decision == "DENY":
         why = "The source course does not meet the minimum equivalency threshold under the current policy."
