@@ -1483,3 +1483,12 @@ def get_reviewer(reviewerId: str, db: Session = Depends(get_db)):
         utcId=r.utc_id,  
         createdAt=r.created_at,
     )
+
+@app.delete("/api/cases/{case_id}")
+def delete_case(case_id: str, db: Session = Depends(get_db)):
+    req = db.query(Request).filter(Request.request_id == uuid.UUID(case_id)).first()
+    if not req:
+        raise HTTPException(status_code=404, detail="Case not found.")
+    db.delete(req)
+    db.commit()
+    return {"message": "Case deleted successfully.", "caseId": case_id}
