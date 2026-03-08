@@ -44,12 +44,12 @@ function DecisionSummaryCard({ result }) {
         >
           {decisionLabelMap[decision]}
         </span>
-        <span
+        {/* <span
           className="decision-summary-card__confidence-badge"
           style={{ backgroundColor: confidenceColor }}
         >
           {confidence}
-        </span>
+        </span> */}
       </div>
 
       <div className="decision-summary-card__score-section">

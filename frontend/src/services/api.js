@@ -59,8 +59,10 @@ function mapCaseDetail(data) {
   const latestDecision = [...reviewActions].reverse().find((a) => a.action === "approve" || a.action === "deny");
 
   let displayStatus = (c.status || "").toUpperCase();
-  if (displayStatus === "REVIEWED" && latestDecision) {
-    displayStatus = latestDecision.action === "approve" ? "APPROVED" : "DENIED";
+  if (displayStatus === "REVIEWED") {
+    if (latestDecision?.action === "approve") displayStatus = "APPROVED";
+    else if (latestDecision?.action === "deny") displayStatus = "DENIED";
+    else if (latestInfoRequest) displayStatus = "NEEDS_INFO";
   }
 
   return {

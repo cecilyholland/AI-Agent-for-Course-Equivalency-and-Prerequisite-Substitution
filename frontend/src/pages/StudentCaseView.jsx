@@ -60,7 +60,7 @@ export default function StudentCaseView() {
   const reviewerDecision = decisionResult?.latestReview?.reviewerDecision;
   const isApproved = caseData.status === "APPROVED" || (caseData.status === "REVIEWED" && reviewerDecision === "APPROVE");
   const isDenied = caseData.status === "DENIED" || (caseData.status === "REVIEWED" && reviewerDecision === "DENY");
-  const needsMoreInfo = caseData.status === "REVIEWED" && reviewerDecision === "NEEDS_MORE_INFO";
+  const needsMoreInfo = caseData.status === "NEEDS_INFO" || (caseData.status === "REVIEWED" && reviewerDecision === "NEEDS_MORE_INFO");
 
   return (
     <div className="student-case-view">
