@@ -1339,7 +1339,6 @@ def build_contracts_packet(case: Request, evidence_rows: list[GroundedEvidence])
 
 def validate_packet_or_raise(packet: DecisionInputsPacket) -> list[str]:
     missing: list[str] = []
-
     src = packet.source_course
     policy = packet.policy
 
