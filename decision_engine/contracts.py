@@ -55,6 +55,7 @@ class TargetCourseProfile(BaseModel):
     target_lab_required: bool
     required_topics: List[str] = Field(default_factory=list)
     required_outcomes: List[str] = Field(default_factory=list)
+    prerequisites: List[str] = Field(default_factory=list)   # reviewer-verified, not auto-checked
 
 
 class PolicyConfig(BaseModel):
@@ -99,12 +100,14 @@ class GapItem(BaseModel):
 
 class DecisionResult(BaseModel):
     decision: Decision
-    equivalency_score: int
+    equivalency_score: int          # 0-100, the scoring component
     confidence: Confidence
+    evidence_quality_score: int = 0  # 0-100, how complete/cited the source evidence is
     reasons: List[ReasonItem] = Field(default_factory=list)
     gaps: List[GapItem] = Field(default_factory=list)
     bridge_plan: List[str] = Field(default_factory=list)
     missing_info_requests: List[str] = Field(default_factory=list)
+    prerequisite_notes: List[str] = Field(default_factory=list)  # items the reviewer should verify manually
 
 
 def _norm_list(val: Any) -> List[str]:
@@ -163,6 +166,118 @@ def _parse_term_year(term: str) -> Optional[int]:
 def _current_year() -> int:
     from datetime import datetime, timezone
     return datetime.now(timezone.utc).year
+
+
+def _evidence_quality_score(src: CourseEvidence, policy: PolicyConfig) -> int:
+    """
+    0-100 score measuring how complete and citation-backed the source evidence is.
+    Distinct from confidence: confidence judges the decision, this judges the evidence.
+
+    Per field: 0 (unknown) / 70 (known but no citation) / 100 (known with citation).
+    Only counts transcript fields (grade, term_taken) when the corresponding policy rule is active.
+    """
+    def _field_score(f: EvidenceField) -> int:
+        if f.unknown or f.value in (None, "", []):
+            return 0
+        return 100 if f.citations else 70
+
+    fields = [
+        src.credits,
+        src.contact_hours_lecture,
+        src.contact_hours_lab,
+        src.lab_component,
+        src.topics,
+        src.outcomes,
+        src.assessments,
+    ]
+    if policy.min_grade:
+        fields.append(src.grade)
+    if policy.max_course_age_years > 0:
+        fields.append(src.term_taken)
+
+    return int(sum(_field_score(f) for f in fields) / max(1, len(fields)))
+
+
+def _calibrated_confidence(
+    decision: Decision,
+    score: int,
+    policy: PolicyConfig,
+    unknown_count: int,
+    has_hard: bool,
+    info_missing_count: int,
+) -> Confidence:
+    """
+    Calibrated confidence — avoids high confidence on ambiguous cases.
+
+    Starts at 100, applies penalties:
+    - Each unknown field: -12
+    - Each INFO_MISSING gap: -10
+    - Score near a band boundary (margin < 5): -15; margin < 10: -8
+    - APPROVE_WITH_BRIDGE is inherently a "partial match" -> max MEDIUM
+    - NEEDS_MORE_INFO -> max LOW (we are saying we don't know)
+
+    Final: >=75 HIGH, >=45 MEDIUM, else LOW.
+    """
+    # NEEDS_MORE_INFO is by construction low-confidence
+    if decision == Decision.NEEDS_MORE_INFO:
+        return Confidence.LOW
+
+    conf = 100
+    conf -= unknown_count * 12
+    conf -= info_missing_count * 10
+
+    # margin penalties — only meaningful when the decision is score-driven
+    if decision == Decision.APPROVE:
+        margin = score - policy.approve_threshold
+        if margin < 3:
+            conf -= 30   # right at boundary — ambiguous
+        elif margin < 5:
+            conf -= 20
+        elif margin < 10:
+            conf -= 10
+    elif decision == Decision.APPROVE_WITH_BRIDGE:
+        # Bridge decisions are inherently uncertain
+        conf = min(conf, 65)
+    elif decision == Decision.DENY and not has_hard:
+        # DENY via low score — how far below?
+        margin = policy.needs_info_threshold - score
+        if margin < 3:
+            conf -= 30
+        elif margin < 5:
+            conf -= 20
+        elif margin < 10:
+            conf -= 10
+    # DENY via has_hard can be confident (a clear rule violation)
+
+    if conf >= 75:
+        return Confidence.HIGH
+    if conf >= 45:
+        return Confidence.MEDIUM
+    return Confidence.LOW
+
+
+def aggregate_committee_votes(votes: List[Decision]) -> Decision:
+    """
+    Apply majority-rule aggregation for committee review. Ties break toward the
+    more conservative outcome (DENY > NEEDS_MORE_INFO > APPROVE_WITH_BRIDGE > APPROVE).
+    An empty vote list returns NEEDS_MORE_INFO.
+    """
+    if not votes:
+        return Decision.NEEDS_MORE_INFO
+
+    tally: dict = {}
+    for v in votes:
+        tally[v] = tally.get(v, 0) + 1
+
+    max_count = max(tally.values())
+    winners = [d for d, c in tally.items() if c == max_count]
+
+    # Tiebreak: most conservative first
+    priority = [Decision.DENY, Decision.NEEDS_MORE_INFO, Decision.APPROVE_WITH_BRIDGE, Decision.APPROVE]
+    for d in priority:
+        if d in winners:
+            return d
+    return winners[0]
 
 
 def decide(packet: DecisionInputsPacket) -> DecisionResult:
@@ -482,28 +597,49 @@ def decide(packet: DecisionInputsPacket) -> DecisionResult:
     else:
         decision = Decision.DENY
 
-    # Confidence (simple heuristic)
+    # ---------------------------
+    # Prerequisite notes — flag for reviewer (not auto-verified)
+    # ---------------------------
+    # Project scope includes "Prerequisite Substitution" but auto-verification
+    # needs a transcript parser + prereq chain model (future work). For the demo,
+    # we surface target prerequisites as notes for the reviewer to check manually.
+    prerequisite_notes: List[str] = []
+    target_prereqs = getattr(tgt, "prerequisites", None) or []
+    if target_prereqs:
+        prerequisite_notes.append(
+            "Reviewer: verify the student has completed the following prerequisites for the target course: "
+            + ", ".join(target_prereqs)
+        )
+
+    # ---------------------------
+    # Confidence + evidence quality
+    # ---------------------------
     unknown_count = sum([
         1 if credits_unknown else 0,
         1 if lab_unknown else 0,
         1 if topics_unknown else 0,
         1 if outcomes_unknown else 0,
     ])
-    if decision == Decision.NEEDS_MORE_INFO:
-        confidence = Confidence.LOW
-    elif unknown_count == 0 and (score >= policy.approve_threshold + 10 or score <= policy.bridge_threshold - 10):
-        confidence = Confidence.HIGH
-    elif unknown_count <= 1:
-        confidence = Confidence.MEDIUM
-    else:
-        confidence = Confidence.LOW
+    info_missing_count = sum(1 for g in gaps if g.severity == "INFO_MISSING")
+
+    confidence = _calibrated_confidence(
+        decision=decision,
+        score=int(score),
+        policy=policy,
+        unknown_count=unknown_count,
+        has_hard=has_hard,
+        info_missing_count=info_missing_count,
+    )
+    evidence_quality = _evidence_quality_score(src, policy)
 
     return DecisionResult(
         decision=decision,
         equivalency_score=max(0, min(100, int(score))),
         confidence=confidence,
+        evidence_quality_score=evidence_quality,
         reasons=reasons,
         gaps=gaps,
         bridge_plan=bridge_plan,
         missing_info_requests=missing_info,
+        prerequisite_notes=prerequisite_notes,
     )
