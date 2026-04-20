@@ -46,6 +46,8 @@ class CourseEvidence(BaseModel):
     topics: EvidenceField                 # expect List[str] when known
     outcomes: EvidenceField               # expect List[str] when known
     assessments: EvidenceField            # expect List[str] when known
+    grade: EvidenceField = Field(default_factory=lambda: EvidenceField(unknown=True))          # letter grade from transcript
+    term_taken: EvidenceField = Field(default_factory=lambda: EvidenceField(unknown=True))     # e.g. "Fall 2022"
 
 
 class TargetCourseProfile(BaseModel):
@@ -56,15 +58,21 @@ class TargetCourseProfile(BaseModel):
 
 
 class PolicyConfig(BaseModel):
-    approve_threshold: int = 80
-    bridge_threshold: int = 65
+    # score bands (scores >= threshold fall into that band, highest-wins)
+    approve_threshold: int = 90
+    bridge_threshold: int = 80
+    needs_info_threshold: int = 70
 
-    # hard rules / toggles (can expand later)
+    # behavior toggles
     require_lab_parity: bool = True
-
-    # needs-more-info triggers (v1)
     require_credits_known: bool = True
     require_topics_or_outcomes: bool = True
+
+    # configurable rules — default-off; skipped when evidence is unknown
+    min_grade: Optional[str] = None              # e.g. "C" or "C-"
+    min_contact_hours: int = 0                   # 0 = disabled
+    max_course_age_years: int = 0                # 0 = disabled
+    must_include_topics: List[str] = Field(default_factory=list)
 
 
 class DecisionInputsPacket(BaseModel):
