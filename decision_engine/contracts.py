@@ -55,7 +55,6 @@ class TargetCourseProfile(BaseModel):
     target_lab_required: bool
     required_topics: List[str] = Field(default_factory=list)
     required_outcomes: List[str] = Field(default_factory=list)
-    prerequisites: List[str] = Field(default_factory=list)   # reviewer-verified, not auto-checked
 
 
 class PolicyConfig(BaseModel):
@@ -116,7 +115,6 @@ class DecisionResult(BaseModel):
     bridge_plan: List[str] = Field(default_factory=list)             # kept for backward compat (string list)
     bridge_plan_items: List[BridgeItem] = Field(default_factory=list)  # structured version — preferred
     missing_info_requests: List[str] = Field(default_factory=list)
-    prerequisite_notes: List[str] = Field(default_factory=list)  # items the reviewer should verify manually
 
 
 def _norm_list(val: Any) -> List[str]:
@@ -638,20 +636,6 @@ def decide(packet: DecisionInputsPacket) -> DecisionResult:
         decision = Decision.DENY
 
     # ---------------------------
-    # Prerequisite notes — flag for reviewer (not auto-verified)
-    # ---------------------------
-    # Project scope includes "Prerequisite Substitution" but auto-verification
-    # needs a transcript parser + prereq chain model (future work). For the demo,
-    # we surface target prerequisites as notes for the reviewer to check manually.
-    prerequisite_notes: List[str] = []
-    target_prereqs = getattr(tgt, "prerequisites", None) or []
-    if target_prereqs:
-        prerequisite_notes.append(
-            "Reviewer: verify the student has completed the following prerequisites for the target course: "
-            + ", ".join(target_prereqs)
-        )
-
-    # ---------------------------
     # Confidence + evidence quality
     # ---------------------------
     unknown_count = sum([
@@ -682,5 +666,4 @@ def decide(packet: DecisionInputsPacket) -> DecisionResult:
         bridge_plan=[b.text for b in bridge_items],  # backward-compat string list
         bridge_plan_items=bridge_items,
         missing_info_requests=missing_info,
-        prerequisite_notes=prerequisite_notes,
     )

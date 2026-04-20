@@ -18,7 +18,7 @@ A student has requested that a course they took at another institution (the **so
 
 ## Inputs you will receive
 
-1. **Target course profile** (UTC): `target_credits`, `target_lab_required`, `required_topics`, `required_outcomes`, `prerequisites`.
+1. **Target course profile** (UTC): `target_credits`, `target_lab_required`, `required_topics`, `required_outcomes`.
 2. **Source course evidence** (extracted from student-uploaded documents): `credits`, `contact_hours_lecture`, `contact_hours_lab`, `lab_component`, `topics`, `outcomes`, `assessments`, optionally `grade`, `term_taken` (from transcript).
 3. **Policy** (thresholds + configurable rules — see below).
 4. **Citations**: each evidence field may come with citations (`doc_id`, `chunk_uuid`, `page`, `snippet`) showing where it was extracted from the source document.
@@ -36,8 +36,7 @@ A student has requested that a course they took at another institution (the **so
   "reasons": [{"text": "...", "citations": [...]}],
   "gaps": [{"text": "...", "severity": "HARD" | "FIXABLE" | "INFO_MISSING", "citations": [...]}],
   "bridge_plan_items": [{"text": "...", "remediation_type": "...", "credits": N, "addresses_gap": "..."}],
-  "missing_info_requests": ["..."],
-  "prerequisite_notes": ["..."]
+  "missing_info_requests": ["..."]
 }
 ```
 
@@ -152,8 +151,7 @@ A high-confidence decision on low-quality evidence is a red flag — flag it in 
   ],
   "gaps": [],
   "bridge_plan_items": [],
-  "missing_info_requests": [],
-  "prerequisite_notes": ["Reviewer: verify the student has completed the following prerequisites for the target course: CPSC-1110"]
+  "missing_info_requests": []
 }
 ```
 

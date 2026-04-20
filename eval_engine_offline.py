@@ -49,35 +49,12 @@ def load_policy() -> PolicyConfig:
 
 
 def load_target(code: Optional[str]) -> TargetCourseProfile:
-    if not code:
-        return TargetCourseProfile(
-            target_credits=3, target_lab_required=False,
-            required_topics=[], required_outcomes=[],
-        )
-    with open(CONFIG_DIR / "target_courses.yaml", "r", encoding="utf-8") as f:
-        data = yaml.safe_load(f) or {}
-    targets = (data.get("targets") or {})
-
-    # Normalize input code similar to app.main._normalize_course_code
-    import re
-    norm = code.strip().upper()
-    norm = re.sub(r"[\s_]+", "-", norm)
-    norm = re.sub(r"([A-Z])(\d)", r"\1-\2", norm)
-    norm = re.sub(r"-+", "-", norm)
-
-    profile = targets.get(norm)
-    if not profile:
-        print(f"  [warn] no target profile for '{code}' (norm '{norm}'); using fallback")
-        return TargetCourseProfile(
-            target_credits=3, target_lab_required=False,
-            required_topics=[], required_outcomes=[],
-        )
+    # Permissive default target — GPT handles per-target topic reasoning in the
+    # real pipeline. This harness uses the same fallback so offline eval matches
+    # what the backend produces.
     return TargetCourseProfile(
-        target_credits=profile.get("target_credits", 3),
-        target_lab_required=bool(profile.get("target_lab_required", False)),
-        required_topics=profile.get("required_topics", []) or [],
-        required_outcomes=profile.get("required_outcomes", []) or [],
-        prerequisites=profile.get("prerequisites", []) or [],
+        target_credits=3, target_lab_required=False,
+        required_topics=[], required_outcomes=[],
     )
 
 
