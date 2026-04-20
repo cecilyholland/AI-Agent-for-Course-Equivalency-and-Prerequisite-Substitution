@@ -125,14 +125,53 @@ def _norm_list(val: Any) -> List[str]:
     return [str(val).strip()] if str(val).strip() else []
 
 
+_STOPWORDS = frozenset({
+    "a", "an", "the", "and", "or", "of", "in", "on", "for", "to",
+    "with", "by", "from", "at", "as", "is", "are", "be", "been",
+})
+
+
+def _stem_plural(w: str) -> str:
+    """Cheap singularizer: strips trailing 's' except for common non-plural -s endings."""
+    if len(w) > 3 and w.endswith("s") and not w.endswith(("ss", "us", "is", "sis")):
+        return w[:-1]
+    return w
+
+
+def _tokenize(s: str) -> set:
+    """Content-word token set: lowercase, punctuation-free, stopword-stripped, singularized."""
+    import re
+    return {
+        _stem_plural(t)
+        for t in re.findall(r"[a-z0-9]+", s.lower())
+        if t not in _STOPWORDS
+    }
+
+
 def _contains_required(required: str, candidates: List[str]) -> bool:
+    """
+    Returns True when `required` matches any candidate via:
+    - Exact or substring match (fast path), OR
+    - 60%+ content-word overlap (handles 'analyze time complexity' vs
+      'analyze time and space complexity', singular/plural, extra modifiers).
+    """
     r = required.lower().strip()
     if not r:
         return False
+
+    r_tokens = _tokenize(r)
+    if not r_tokens:
+        return False
+
     for c in candidates:
-        c2 = c.lower()
-        if r in c2 or c2 in r:
+        c_lower = c.lower()
+        if r in c_lower or c_lower in r:
             return True
+        c_tokens = _tokenize(c_lower)
+        if c_tokens:
+            overlap = len(r_tokens & c_tokens) / len(r_tokens)
+            if overlap >= 0.6:
+                return True
     return False
 
 

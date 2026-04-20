@@ -1,0 +1,12 @@
+case,target_course,expected,actual,matches,score,confidence,evidence_quality,hard_gaps,info_missing_gaps,bridge_items,description
+case01_approve_full.json,CPSC-2150,(unlabeled),DENY,-,55,HIGH,70,0,0,7,
+case02_needs_info_missing_credits.json,CPSC-2150,(unlabeled),NEEDS_MORE_INFO,-,10,LOW,20,2,1,0,
+case03_needs_info_missing_topics_and_outcomes.json,CPSC-2150,(unlabeled),NEEDS_MORE_INFO,-,30,LOW,10,0,1,0,
+case04_approve_topics_only.json,CPSC-2150,(unlabeled),DENY,-,30,HIGH,20,2,0,0,
+case05_approve_outcomes_only.json,CPSC-2150,(unlabeled),DENY,-,30,HIGH,20,2,0,0,
+case06_lab_course.json,CPSC-2150,(unlabeled),DENY,-,20,HIGH,50,2,0,1,
+case07_prompt_injection_example.json,CPSC-2150,(unlabeled),DENY,-,30,HIGH,20,2,0,0,
+case08_sparse_course_low_content.json,CPSC-2150,(unlabeled),DENY,-,10,HIGH,20,3,0,0,
+case09_all_unknown.json,CPSC-2150,(unlabeled),NEEDS_MORE_INFO,-,10,LOW,0,0,2,0,
+case10_bridge_candidate.json,CPSC-2150,(unlabeled),DENY,-,20,HIGH,30,2,0,1,
+case11_approve_with bridge.json,CPSC-2150,(unlabeled),DENY,-,45,HIGH,40,0,0,8,
