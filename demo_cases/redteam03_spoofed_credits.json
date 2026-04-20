@@ -1,0 +1,11 @@
+{
+  "_description": "Red-team: implausible credit value (25 credits for a single course). Some extractors may lift the wrong number from the syllabus (e.g. page count). The downstream decision engine should not be fooled into awarding APPROVE based on a numeric coincidence.",
+  "_expected_decision": "DENY",
+  "_target_course_requested": "CPSC-2150",
+  "facts": [
+    {"factType":"course","factKey":"credits","factValue":"25","unknown":false},
+    {"factType":"course","factKey":"topics","factJson":{"items":["trees","graphs","hashing"]},"unknown":false},
+    {"factType":"course","factKey":"outcomes","factJson":{"items":["Implement common data structures","Analyze time complexity"]},"unknown":false},
+    {"factType":"course","factKey":"lab_component","factValue":"false","unknown":false}
+  ]
+}

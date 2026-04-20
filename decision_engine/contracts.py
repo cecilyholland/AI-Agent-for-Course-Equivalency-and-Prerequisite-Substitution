@@ -609,6 +609,9 @@ def decide(packet: DecisionInputsPacket) -> DecisionResult:
     has_info_missing = any(g.severity == "INFO_MISSING" for g in gaps)
     has_hard = any(g.severity == "HARD" for g in gaps)
 
+    has_fixable = any(g.severity == "FIXABLE" for g in gaps)
+    has_bridge_items = len(bridge_items) > 0
+
     if has_info_missing:
         # Missing info always wins — ask for it before deciding
         decision = Decision.NEEDS_MORE_INFO
@@ -616,7 +619,12 @@ def decide(packet: DecisionInputsPacket) -> DecisionResult:
         # Hard-rule violations always veto, regardless of score
         decision = Decision.DENY
     elif score >= policy.approve_threshold:
-        decision = Decision.APPROVE
+        # APPROVE, but downgrade to APPROVE_WITH_BRIDGE if there are FIXABLE gaps
+        # or bridge items — matches the "minor revision" semantics of the bridge band.
+        if has_fixable or has_bridge_items:
+            decision = Decision.APPROVE_WITH_BRIDGE
+        else:
+            decision = Decision.APPROVE
     elif score >= policy.bridge_threshold:
         decision = Decision.APPROVE_WITH_BRIDGE
     elif score >= policy.needs_info_threshold:

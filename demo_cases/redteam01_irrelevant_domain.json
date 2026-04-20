@@ -1,0 +1,14 @@
+{
+  "_description": "Red-team: student submits a medical pathology syllabus (Brown MED 2150) to satisfy a CS data-structures course. Engine should reject via HARD gap on zero-topic-overlap.",
+  "_expected_decision": "DENY",
+  "_target_course_requested": "CPSC-2150",
+  "facts": [
+    {"factType":"course","factKey":"credits","factValue":"3","unknown":false},
+    {"factType":"course","factKey":"contact_hours_lecture","factValue":"45","unknown":false},
+    {"factType":"course","factKey":"contact_hours_lab","factValue":"0","unknown":false},
+    {"factType":"course","factKey":"lab_component","factValue":"false","unknown":false},
+    {"factType":"course","factKey":"topics","factJson":{"items":["cellular injury","inflammation","neoplasia","immunopathology","cardiovascular pathology"]},"unknown":false},
+    {"factType":"course","factKey":"outcomes","factJson":{"items":["Identify pathological processes","Diagnose from histological findings"]},"unknown":false},
+    {"factType":"course","factKey":"assessments","factJson":{"items":["Midterm","Final","Case studies"]},"unknown":false}
+  ]
+}
