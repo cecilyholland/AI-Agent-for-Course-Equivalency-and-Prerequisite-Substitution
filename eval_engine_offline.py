@@ -49,12 +49,36 @@ def load_policy() -> PolicyConfig:
 
 
 def load_target(code: Optional[str]) -> TargetCourseProfile:
-    # Permissive default target — GPT handles per-target topic reasoning in the
-    # real pipeline. This harness uses the same fallback so offline eval matches
-    # what the backend produces.
+    """Load per-target course profile from config/target_courses.yaml (falls back to permissive default)."""
+    if not code:
+        return TargetCourseProfile(
+            target_credits=3, target_lab_required=False,
+            required_topics=[], required_outcomes=[],
+        )
+    try:
+        with open(CONFIG_DIR / "target_courses.yaml", "r", encoding="utf-8") as f:
+            data = yaml.safe_load(f) or {}
+    except FileNotFoundError:
+        data = {}
+
+    targets = (data.get("targets") or {})
+    import re
+    norm = code.strip().upper()
+    norm = re.sub(r"[\s_]+", "-", norm)
+    norm = re.sub(r"([A-Z])(\d)", r"\1-\2", norm)
+    norm = re.sub(r"-+", "-", norm)
+
+    profile = targets.get(norm)
+    if not profile:
+        return TargetCourseProfile(
+            target_credits=3, target_lab_required=False,
+            required_topics=[], required_outcomes=[],
+        )
     return TargetCourseProfile(
-        target_credits=3, target_lab_required=False,
-        required_topics=[], required_outcomes=[],
+        target_credits=profile.get("target_credits", 3),
+        target_lab_required=bool(profile.get("target_lab_required", False)),
+        required_topics=profile.get("required_topics", []) or [],
+        required_outcomes=profile.get("required_outcomes", []) or [],
     )
 
 

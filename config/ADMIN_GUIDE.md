@@ -1,8 +1,16 @@
-# Admin Guide — Decision Policy
+# Admin Guide — Decision Policy & Target Courses
 
-This guide is for admins who need to change how the agent makes recommendations.
-It does not require any code changes — just edit `policy.yaml` in this directory
-and restart the backend (`uvicorn app.main:app`) for changes to take effect.
+This guide is for admins who need to change how the agent makes recommendations
+or add new UTC courses the agent can evaluate toward. It does not require any
+code changes — just edit the YAML files in this directory and restart the
+backend (`uvicorn app.main:app`) for changes to take effect.
+
+## Files
+
+| File | Purpose |
+|---|---|
+| `policy.yaml` | System-wide decision policy — thresholds and configurable rules |
+| `target_courses.yaml` | One entry per UTC course the agent can evaluate toward |
 
 ---
 
@@ -64,21 +72,59 @@ must_include_topics: []
 
 ---
 
-## Verification
+## `target_courses.yaml` — Adding a new UTC course
 
-After editing, you can confirm the new policy is loaded:
+Each entry under `targets:` describes one UTC course an equivalency request can
+evaluate toward. The key (e.g., `CPSC-2150`) is the course code. The backend
+normalizes user input — `CPSC 2150`, `cpsc2150`, `CPSC-2150` all match this key.
 
-```bash
-python -c "from app.main import load_policy_config; print(load_policy_config().model_dump())"
+### Schema
+
+```yaml
+targets:
+  <COURSE-CODE>:
+    display_name: str             # human-readable label
+    target_credits: int           # expected credit hours
+    target_lab_required: bool     # does the course require a lab?
+    required_topics: list[str]    # topics the source must cover
+    required_outcomes: list[str]  # learning outcomes the source must demonstrate
 ```
+
+### Example — adding a new course
+
+```yaml
+targets:
+  CPSC-4240:
+    display_name: "Intro to Machine Learning"
+    target_credits: 3
+    target_lab_required: false
+    required_topics:
+      - supervised learning
+      - unsupervised learning
+      - neural networks
+      - model evaluation
+    required_outcomes:
+      - Train and evaluate basic ML models
+      - Choose appropriate models for a given task
+      - Analyze model performance metrics
+```
+
+### Tips
+
+- **Be specific on `required_topics`** — these drive 40% of the equivalency score. Vague entries (e.g., `"programming"`) won't match source syllabi well. Prefer concrete names (e.g., `"linked lists"`, `"SQL"`).
+- **Don't over-require.** The scoring is proportional — requiring 10 topics when most syllabi cover 5 will force everything into `APPROVE_WITH_BRIDGE`. Aim for 5-8 required topics.
+- **`target_lab_required: true`** triggers the lab-parity rule. Use only for courses that truly require a lab (e.g., Digital Logic, Organic Chemistry).
 
 ---
 
-## Future work — per-target course profiles
+## Verification
 
-The agent currently uses a permissive default target profile (3 credits, no lab,
-no required topics or outcomes). Per-target customization (e.g., "CPSC-2150
-Data Structures requires these specific topics") is handled by the GPT system
-prompt rather than a per-course config file. If the team later wants to add
-structured per-course profiles with required topics/outcomes lists, that can be
-reintroduced as a `target_courses.yaml` in this directory.
+After editing either file, confirm the new config is loaded:
+
+```bash
+python -c "
+from app.main import load_policy_config, load_target_profile
+print(load_policy_config().model_dump())
+print(load_target_profile('CPSC-2150').model_dump())
+"
+```
