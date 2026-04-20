@@ -136,6 +136,35 @@ def _overlap_score(required_items: List[str], found_items: List[str], weight: in
     return points, matched
 
 
+# Grade scale used for min_grade rule. Lower index = better grade.
+_GRADE_ORDER = ["A+", "A", "A-", "B+", "B", "B-", "C+", "C", "C-", "D+", "D", "D-", "F"]
+
+
+def _grade_rank(grade: str) -> Optional[int]:
+    """Return index in _GRADE_ORDER, or None if unparseable."""
+    if not grade:
+        return None
+    g = grade.strip().upper().replace(" ", "")
+    try:
+        return _GRADE_ORDER.index(g)
+    except ValueError:
+        return None
+
+
+def _parse_term_year(term: str) -> Optional[int]:
+    """Pull a 4-digit year out of strings like 'Fall 2022' or '2022-F' or '2022'."""
+    if not term:
+        return None
+    import re
+    m = re.search(r"(19|20)\d{2}", str(term))
+    return int(m.group(0)) if m else None
+
+
+def _current_year() -> int:
+    from datetime import datetime, timezone
+    return datetime.now(timezone.utc).year
+
+
 def decide(packet: DecisionInputsPacket) -> DecisionResult:
     """
     MVP decision engine:
@@ -300,22 +329,158 @@ def decide(packet: DecisionInputsPacket) -> DecisionResult:
             ))
 
     # ---------------------------
-    # Decision rules
+    # Configurable hard rules (default-off; skipped when disabled or data unknown)
+    # These are veto conditions, not scoring components.
+    # ---------------------------
+
+    # min_grade: student must have achieved at least this grade
+    if policy.min_grade:
+        min_rank = _grade_rank(policy.min_grade)
+        grade_unknown = src.grade.unknown or src.grade.value in (None, "")
+        if grade_unknown:
+            gaps.append(GapItem(
+                text=f"Minimum grade policy is set ({policy.min_grade}) but source grade is unknown.",
+                severity="INFO_MISSING",
+                citations=src.grade.citations,
+            ))
+            missing_info.append("Provide the grade achieved in the source course (transcript).")
+        elif min_rank is not None:
+            src_rank = _grade_rank(str(src.grade.value))
+            if src_rank is None:
+                gaps.append(GapItem(
+                    text=f"Source grade ('{src.grade.value}') could not be parsed on the letter-grade scale.",
+                    severity="INFO_MISSING",
+                    citations=src.grade.citations,
+                ))
+                missing_info.append("Provide grade in a standard letter format (A, B+, C-, etc.).")
+            elif src_rank > min_rank:
+                gaps.append(GapItem(
+                    text=f"Grade ({src.grade.value}) does not meet minimum policy ({policy.min_grade}).",
+                    severity="HARD",
+                    citations=src.grade.citations,
+                ))
+            else:
+                reasons.append(ReasonItem(
+                    text=f"Grade ({src.grade.value}) meets the minimum policy ({policy.min_grade}).",
+                    citations=src.grade.citations,
+                ))
+
+    # min_contact_hours: lecture + lab must meet a floor
+    if policy.min_contact_hours > 0:
+        lec_known = not (src.contact_hours_lecture.unknown or src.contact_hours_lecture.value is None)
+        lab_known = not (src.contact_hours_lab.unknown or src.contact_hours_lab.value is None)
+        if not (lec_known or lab_known):
+            gaps.append(GapItem(
+                text=f"Minimum contact hours policy is set ({policy.min_contact_hours}h) but source contact hours are unknown.",
+                severity="INFO_MISSING",
+                citations=(src.contact_hours_lecture.citations + src.contact_hours_lab.citations),
+            ))
+            missing_info.append("Provide contact hours (lecture and/or lab) for the source course.")
+        else:
+            try:
+                lec = int(src.contact_hours_lecture.value or 0) if lec_known else 0
+                lab = int(src.contact_hours_lab.value or 0) if lab_known else 0
+                total_hours = lec + lab
+                if total_hours < policy.min_contact_hours:
+                    gaps.append(GapItem(
+                        text=f"Contact hours ({total_hours}h) below minimum policy ({policy.min_contact_hours}h).",
+                        severity="HARD",
+                        citations=(src.contact_hours_lecture.citations + src.contact_hours_lab.citations),
+                    ))
+                else:
+                    reasons.append(ReasonItem(
+                        text=f"Contact hours ({total_hours}h) meet the minimum policy ({policy.min_contact_hours}h).",
+                        citations=(src.contact_hours_lecture.citations + src.contact_hours_lab.citations),
+                    ))
+            except (TypeError, ValueError):
+                gaps.append(GapItem(
+                    text="Contact hours could not be parsed as numbers.",
+                    severity="INFO_MISSING",
+                    citations=(src.contact_hours_lecture.citations + src.contact_hours_lab.citations),
+                ))
+                missing_info.append("Provide contact hours in a clear numeric format.")
+
+    # max_course_age_years: source course must be recent enough
+    if policy.max_course_age_years > 0:
+        term_unknown = src.term_taken.unknown or src.term_taken.value in (None, "")
+        if term_unknown:
+            gaps.append(GapItem(
+                text=f"Course expiration policy is set ({policy.max_course_age_years} years) but source term is unknown.",
+                severity="INFO_MISSING",
+                citations=src.term_taken.citations,
+            ))
+            missing_info.append("Provide the term/year the source course was taken (transcript).")
+        else:
+            year = _parse_term_year(str(src.term_taken.value))
+            if year is None:
+                gaps.append(GapItem(
+                    text=f"Term taken ('{src.term_taken.value}') could not be parsed to a year.",
+                    severity="INFO_MISSING",
+                    citations=src.term_taken.citations,
+                ))
+                missing_info.append("Provide term in a recognizable format (e.g., 'Fall 2022').")
+            else:
+                age = _current_year() - year
+                if age > policy.max_course_age_years:
+                    gaps.append(GapItem(
+                        text=f"Source course is {age} years old; policy maximum is {policy.max_course_age_years} years.",
+                        severity="HARD",
+                        citations=src.term_taken.citations,
+                    ))
+                else:
+                    reasons.append(ReasonItem(
+                        text=f"Source course is {age} years old, within the {policy.max_course_age_years}-year limit.",
+                        citations=src.term_taken.citations,
+                    ))
+
+    # must_include_topics: policy-level mandatory topics (beyond target-specific required_topics)
+    if policy.must_include_topics:
+        if topics_unknown:
+            gaps.append(GapItem(
+                text="Mandatory topics policy is set but source topics are unknown.",
+                severity="INFO_MISSING",
+                citations=src.topics.citations,
+            ))
+            # missing_info already added by the earlier topics/outcomes check if applicable
+        else:
+            missing_required = [t for t in policy.must_include_topics if not _contains_required(t, topics)]
+            if missing_required:
+                gaps.append(GapItem(
+                    text=f"Missing mandatory policy topics: {', '.join(missing_required)}.",
+                    severity="HARD",
+                    citations=src.topics.citations,
+                ))
+            else:
+                reasons.append(ReasonItem(
+                    text=f"All mandatory policy topics present ({len(policy.must_include_topics)}).",
+                    citations=src.topics.citations,
+                ))
+
+    # ---------------------------
+    # Decision ladder — 4 bands
     # ---------------------------
     has_info_missing = any(g.severity == "INFO_MISSING" for g in gaps)
     has_hard = any(g.severity == "HARD" for g in gaps)
 
     if has_info_missing:
+        # Missing info always wins — ask for it before deciding
         decision = Decision.NEEDS_MORE_INFO
+    elif has_hard:
+        # Hard-rule violations always veto, regardless of score
+        decision = Decision.DENY
+    elif score >= policy.approve_threshold:
+        decision = Decision.APPROVE
+    elif score >= policy.bridge_threshold:
+        decision = Decision.APPROVE_WITH_BRIDGE
+    elif score >= policy.needs_info_threshold:
+        # Score in the ambiguous band — ask for more info
+        decision = Decision.NEEDS_MORE_INFO
+        missing_info.append(
+            "Equivalency score is in the ambiguous band; additional evidence "
+            "(more detailed syllabus, transcript, assessment samples) would help."
+        )
     else:
-        if score >= policy.approve_threshold and not has_hard:
-            decision = Decision.APPROVE
-        elif score >= policy.bridge_threshold and not has_hard:
-            decision = Decision.APPROVE_WITH_BRIDGE
-        elif score >= policy.bridge_threshold and has_hard:
-            decision = Decision.DENY
-        else:
-            decision = Decision.DENY
+        decision = Decision.DENY
 
     # Confidence (simple heuristic)
     unknown_count = sum([
