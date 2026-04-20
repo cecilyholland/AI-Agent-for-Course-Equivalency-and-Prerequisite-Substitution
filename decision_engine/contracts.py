@@ -98,14 +98,23 @@ class GapItem(BaseModel):
     citations: List[Citation] = Field(default_factory=list)
 
 
+class BridgeItem(BaseModel):
+    """Structured bridge-plan entry — what must be learned/completed to satisfy a gap."""
+    text: str
+    remediation_type: Optional[Literal["course", "lab", "exam", "self_study", "project"]] = None
+    credits: Optional[int] = None           # approximate credits required
+    addresses_gap: Optional[str] = None     # short label of the gap this closes
+
+
 class DecisionResult(BaseModel):
     decision: Decision
-    equivalency_score: int          # 0-100, the scoring component
+    equivalency_score: int           # 0-100, the scoring component
     confidence: Confidence
     evidence_quality_score: int = 0  # 0-100, how complete/cited the source evidence is
     reasons: List[ReasonItem] = Field(default_factory=list)
     gaps: List[GapItem] = Field(default_factory=list)
-    bridge_plan: List[str] = Field(default_factory=list)
+    bridge_plan: List[str] = Field(default_factory=list)             # kept for backward compat (string list)
+    bridge_plan_items: List[BridgeItem] = Field(default_factory=list)  # structured version — preferred
     missing_info_requests: List[str] = Field(default_factory=list)
     prerequisite_notes: List[str] = Field(default_factory=list)  # items the reviewer should verify manually
 
@@ -130,13 +139,14 @@ def _contains_required(required: str, candidates: List[str]) -> bool:
 
 
 def _overlap_score(required_items: List[str], found_items: List[str], weight: int):
-    """Returns (points, matched_required_items)."""
+    """Returns (points, matched_required_items, missing_required_items)."""
     if not required_items:
-        return weight, []  # nothing required => full credit
+        return weight, [], []  # nothing required => full credit
     matched = [r for r in required_items if _contains_required(r, found_items)]
+    missing = [r for r in required_items if r not in matched]
     ratio = len(matched) / max(1, len(required_items))
     points = int(round(weight * ratio))
-    return points, matched
+    return points, matched, missing
 
 
 # Grade scale used for min_grade rule. Lower index = better grade.
@@ -292,7 +302,7 @@ def decide(packet: DecisionInputsPacket) -> DecisionResult:
 
     reasons: List[ReasonItem] = []
     gaps: List[GapItem] = []
-    bridge_plan: List[str] = []
+    bridge_items: List[BridgeItem] = []
     missing_info: List[str] = []
 
     # Weights (sum to 100)
@@ -343,7 +353,12 @@ def decide(packet: DecisionInputsPacket) -> DecisionResult:
                     severity="FIXABLE",
                     citations=src.credits.citations,
                 ))
-                bridge_plan.append("Complete an additional 1-credit bridge component if required by the department.")
+                bridge_items.append(BridgeItem(
+                    text="Complete an additional 1-credit bridge component if required by the department.",
+                    remediation_type="course",
+                    credits=1,
+                    addresses_gap="credit_shortfall",
+                ))
             else:
                 gaps.append(GapItem(
                     text=f"Credits do not match (source {src_credits} vs target {tgt.target_credits}).",
@@ -379,7 +394,11 @@ def decide(packet: DecisionInputsPacket) -> DecisionResult:
                     severity="FIXABLE",
                     citations=src.lab_component.citations,
                 ))
-                bridge_plan.append("Take the target lab (or an approved lab equivalent) as a bridge requirement.")
+                bridge_items.append(BridgeItem(
+                    text="Take the target lab (or an approved lab equivalent) as a bridge requirement.",
+                    remediation_type="lab",
+                    addresses_gap="lab_missing",
+                ))
     else:
         # If lab not required, give full credit for lab component
         score += W_LAB
@@ -402,7 +421,7 @@ def decide(packet: DecisionInputsPacket) -> DecisionResult:
         missing_info.append("Provide course topics and/or learning outcomes from the syllabus or official catalog.")
     else:
         # Topics score (against required topics)
-        pts_t, matched_topics = _overlap_score(tgt.required_topics, topics, W_TOPICS)
+        pts_t, matched_topics, missing_topics = _overlap_score(tgt.required_topics, topics, W_TOPICS)
         score += pts_t
         if tgt.required_topics:
             if matched_topics:
@@ -410,6 +429,13 @@ def decide(packet: DecisionInputsPacket) -> DecisionResult:
                     text=f"Matched {len(matched_topics)}/{len(tgt.required_topics)} required topics.",
                     citations=src.topics.citations,
                 ))
+                # Partial match: emit bridge items for each unmatched topic so APPROVE_WITH_BRIDGE has actionable advice
+                for t in missing_topics:
+                    bridge_items.append(BridgeItem(
+                        text=f"Cover the missing topic '{t}' (self-study, module, or short course).",
+                        remediation_type="self_study",
+                        addresses_gap=f"topic_missing:{t}",
+                    ))
             else:
                 gaps.append(GapItem(
                     text="No required topics were clearly matched.",
@@ -423,7 +449,7 @@ def decide(packet: DecisionInputsPacket) -> DecisionResult:
             ))
 
         # Outcomes score (against required outcomes)
-        pts_o, matched_outcomes = _overlap_score(tgt.required_outcomes, outcomes, W_OUTCOMES)
+        pts_o, matched_outcomes, missing_outcomes = _overlap_score(tgt.required_outcomes, outcomes, W_OUTCOMES)
         score += pts_o
         if tgt.required_outcomes:
             if matched_outcomes:
@@ -431,6 +457,12 @@ def decide(packet: DecisionInputsPacket) -> DecisionResult:
                     text=f"Matched {len(matched_outcomes)}/{len(tgt.required_outcomes)} required learning outcomes.",
                     citations=src.outcomes.citations,
                 ))
+                for o in missing_outcomes:
+                    bridge_items.append(BridgeItem(
+                        text=f"Demonstrate the missing learning outcome: '{o}' (project or exam).",
+                        remediation_type="project",
+                        addresses_gap=f"outcome_missing:{o}",
+                    ))
             else:
                 gaps.append(GapItem(
                     text="No required learning outcomes were clearly matched.",
@@ -639,7 +671,8 @@ def decide(packet: DecisionInputsPacket) -> DecisionResult:
         evidence_quality_score=evidence_quality,
         reasons=reasons,
         gaps=gaps,
-        bridge_plan=bridge_plan,
+        bridge_plan=[b.text for b in bridge_items],  # backward-compat string list
+        bridge_plan_items=bridge_items,
         missing_info_requests=missing_info,
         prerequisite_notes=prerequisite_notes,
     )
