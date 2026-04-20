@@ -1,0 +1,103 @@
+# Target UTC courses — each entry describes one UTC course that an equivalency
+# request can evaluate *toward*. Course codes / names below are placeholders
+# aligned with typical CS curricula; replace with real UTC catalog values
+# before the demo.
+#
+# Schema:
+#   <code>:
+#     display_name: str                   # human-readable label
+#     target_credits: int                 # expected credit hours
+#     target_lab_required: bool           # does the course require a lab?
+#     required_topics: list[str]          # topics the source must cover
+#     required_outcomes: list[str]        # learning outcomes the source must demonstrate
+#     prerequisites: list[str]            # reviewer-verified (not auto-checked)
+
+targets:
+
+  CPSC-1110:
+    display_name: "Programming I"
+    target_credits: 3
+    target_lab_required: false
+    required_topics:
+      - variables
+      - control flow
+      - functions
+      - arrays
+      - basic algorithms
+    required_outcomes:
+      - Write programs using fundamental programming constructs
+      - Decompose problems into functions
+      - Trace and debug simple programs
+    prerequisites: []
+
+  CPSC-2150:
+    display_name: "Data Structures"
+    target_credits: 3
+    target_lab_required: false
+    required_topics:
+      - arrays
+      - linked lists
+      - stacks
+      - queues
+      - trees
+      - graphs
+      - hashing
+      - sorting
+    required_outcomes:
+      - Implement common data structures
+      - Analyze time and space complexity
+      - Select appropriate data structure for a problem
+    prerequisites:
+      - CPSC-1110
+
+  CPSC-3220:
+    display_name: "Operating Systems"
+    target_credits: 3
+    target_lab_required: false
+    required_topics:
+      - processes
+      - threads
+      - scheduling
+      - synchronization
+      - memory management
+      - file systems
+    required_outcomes:
+      - Explain process/thread lifecycles
+      - Implement concurrency primitives
+      - Reason about memory and I/O subsystems
+    prerequisites:
+      - CPSC-2150
+
+  CPSC-3300:
+    display_name: "Database Systems"
+    target_credits: 3
+    target_lab_required: false
+    required_topics:
+      - relational model
+      - SQL
+      - normalization
+      - indexing
+      - transactions
+    required_outcomes:
+      - Design normalized relational schemas
+      - Write SQL for complex queries
+      - Reason about transaction isolation and integrity
+    prerequisites:
+      - CPSC-2150
+
+  CPSC-2310:
+    display_name: "Digital Logic & Computer Organization"
+    target_credits: 4
+    target_lab_required: true
+    required_topics:
+      - boolean algebra
+      - combinational logic
+      - sequential logic
+      - digital circuits
+      - assembly
+    required_outcomes:
+      - Design combinational and sequential circuits
+      - Translate high-level operations to assembly
+      - Reason about CPU datapath and memory hierarchy
+    prerequisites:
+      - CPSC-1110

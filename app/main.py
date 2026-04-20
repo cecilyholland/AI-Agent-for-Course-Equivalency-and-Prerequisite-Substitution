@@ -1317,21 +1317,69 @@ def map_evidence_rows_to_course_evidence(evidence_rows: list[GroundedEvidence]) 
 
     return CourseEvidence(**fields)
 
+CONFIG_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "config")
+
+
 def load_policy_config() -> PolicyConfig:
-    with open("policy.yaml", "r", encoding="utf-8") as f:
+    path = os.path.join(CONFIG_DIR, "policy.yaml")
+    with open(path, "r", encoding="utf-8") as f:
         data = yaml.safe_load(f) or {}
     return PolicyConfig(**data)
 
-def build_contracts_packet(case: Request, evidence_rows: list[GroundedEvidence]) -> DecisionInputsPacket:
-    source = map_evidence_rows_to_course_evidence(evidence_rows)
 
-    target = TargetCourseProfile(
+def _normalize_course_code(code: Optional[str]) -> str:
+    """Normalize 'cpsc 2150', 'CPSC-2150', 'cpsc2150' -> 'CPSC-2150'."""
+    if not code:
+        return ""
+    s = code.strip().upper()
+    # collapse whitespace/underscores/dashes to single dash between letters and digits
+    import re
+    s = re.sub(r"[\s_]+", "-", s)
+    # ensure a dash between the subject letters and the number: "CPSC2150" -> "CPSC-2150"
+    s = re.sub(r"([A-Z])(\d)", r"\1-\2", s)
+    s = re.sub(r"-+", "-", s)
+    return s
+
+
+def load_target_profile(course_requested: Optional[str]) -> TargetCourseProfile:
+    """
+    Look up the requested course in config/target_courses.yaml. Falls back to a
+    permissive default profile if the course is not configured (logged as a warning).
+    """
+    path = os.path.join(CONFIG_DIR, "target_courses.yaml")
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            data = yaml.safe_load(f) or {}
+    except FileNotFoundError:
+        data = {}
+
+    targets = (data.get("targets") or {})
+    code = _normalize_course_code(course_requested)
+
+    profile_data = targets.get(code)
+    if profile_data:
+        return TargetCourseProfile(
+            target_credits=profile_data.get("target_credits", 3),
+            target_lab_required=bool(profile_data.get("target_lab_required", False)),
+            required_topics=profile_data.get("required_topics", []) or [],
+            required_outcomes=profile_data.get("required_outcomes", []) or [],
+            prerequisites=profile_data.get("prerequisites", []) or [],
+        )
+
+    # fallback: permissive profile — score will be driven by whatever evidence is present
+    print(f"[build_contracts_packet] No target profile found for '{course_requested}' (normalized '{code}'); using fallback.")
+    return TargetCourseProfile(
         target_credits=3,
         target_lab_required=False,
         required_topics=[],
         required_outcomes=[],
+        prerequisites=[],
     )
 
+
+def build_contracts_packet(case: Request, evidence_rows: list[GroundedEvidence]) -> DecisionInputsPacket:
+    source = map_evidence_rows_to_course_evidence(evidence_rows)
+    target = load_target_profile(case.course_requested)
     policy = load_policy_config()
 
     return DecisionInputsPacket(
