@@ -30,6 +30,20 @@ CREATE TABLE requests (
 CREATE INDEX idx_requests_status ON requests(status);
 
 
+-- transcripts stores student transcript data linked to a case.
+-- Used by policy engine for min_grade and max_course_age_years rules.
+CREATE TABLE transcripts (
+  transcript_id    UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  request_id       UUID NOT NULL REFERENCES requests(request_id) ON DELETE CASCADE,
+  course_code      TEXT NOT NULL,
+  grade            TEXT NOT NULL,
+  term_taken       TEXT NOT NULL,
+  created_at       TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX idx_transcripts_request_id ON transcripts(request_id);
+
+
 -- this table stores information about each uploaded PDF. The PDF does not get stored here, only metadata
 -- know which request the file belongs to, know where the file is stored, verify integrity, and support multiple uploads per request
 CREATE TABLE documents (

@@ -3,6 +3,9 @@ LLM-based decision engine.
 
 Calls OpenAI (GPT) with the extracted evidence, citation chunks, and policy
 to produce a structured equivalency decision with citations.
+
+System prompt is loaded from prompts/policy.md (maintained by the Decision Logic
+& Policy Engine Lead). Policy config comes from config/policy.yaml.
 """
 from __future__ import annotations
 
@@ -27,98 +30,23 @@ load_dotenv()
 
 openai.api_key = os.getenv("OPENAI_API_KEY")
 
+# ---------------------------------------------------------------------------
+# Load system prompt from prompts/policy.md
+# ---------------------------------------------------------------------------
+
+_PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+_PROMPT_PATH = os.path.join(_PROJECT_ROOT, "prompts", "policy.md")
+
+
+def _load_system_prompt() -> str:
+    """Read the policy prompt file. Cached after first call."""
+    with open(_PROMPT_PATH, "r", encoding="utf-8") as f:
+        return f.read()
+
 
 # ---------------------------------------------------------------------------
 # Prompt construction
 # ---------------------------------------------------------------------------
-
-SYSTEM_PROMPT = """\
-You are an AI course equivalency evaluator for a university.
-
-Your job: given extracted evidence about a SOURCE course (from uploaded syllabi/catalogs)
-and a TARGET course profile, decide whether the source course is equivalent to the target.
-
-## Scoring and Decision Thresholds
-
-You must assign an equivalency_score (0-100) and then use these bands to determine the decision:
-
-- **90-100 → APPROVE**: The source course fully satisfies the target course requirements.
-  All essential criteria match (credits, topics, outcomes, lab if required).
-
-- **80-89 → APPROVE_WITH_BRIDGE**: The source course is mostly equivalent but has minor
-  non-essential gaps that can be resolved with a bridge plan (e.g., one extra
-  assignment, a short module, or a 1-credit supplement). The core content matches
-  but small supplementary pieces are missing.
-
-- **70-79 → NEEDS_MORE_INFO**: Some important information is missing from the evidence
-  and you cannot make a confident decision without it. Use this when key facts
-  (like credits, core topics, or outcomes) are unknown or unclear.
-  Do NOT use this for minor gaps — only when missing info prevents a decision.
-
-- **Below 70 → DENY**: The source course has major gaps that cannot be bridged.
-  Examples: credits differ by more than 1, required topics are completely absent,
-  or hard requirements are unmet.
-
-## Citation Requirements
-
-Every reason and gap you provide MUST cite the chunk_id(s) from the evidence that
-support your claim. This is critical for audit purposes.
-
-## Output Format
-
-Return ONLY valid JSON matching this exact schema (no markdown, no explanation outside JSON):
-
-{
-  "decision": "APPROVE" | "DENY" | "NEEDS_MORE_INFO" | "APPROVE_WITH_BRIDGE",
-  "equivalency_score": <integer 0-100>,
-  "confidence": "LOW" | "MEDIUM" | "HIGH",
-  "reasons": [
-    {"text": "explanation of why this supports equivalency", "citations": [{"chunk_id": "..."}]}
-  ],
-  "gaps": [
-    {"text": "what is missing or mismatched", "severity": "HARD" | "FIXABLE" | "INFO_MISSING", "citations": [{"chunk_id": "..."}]}
-  ],
-  "bridge_plan": ["action item 1", "action item 2"],
-  "missing_info_requests": ["what additional info is needed"]
-}
-
-Severity meanings:
-- HARD: Cannot be resolved, leads to DENY
-- FIXABLE: Minor gap, can be bridged (leads to APPROVE_WITH_BRIDGE)
-- INFO_MISSING: Key info not available, leads to NEEDS_MORE_INFO
-"""
-
-FEW_SHOT_EXAMPLES = """\
-## Examples
-
-### Example 1: APPROVE
-Evidence: Source course has 3 credits (chunk_id: "c-001"), covers data structures, algorithms, complexity analysis (chunk_id: "c-002"), includes programming assignments and exams (chunk_id: "c-003").
-Target: 3 credits, required topics: ["data structures", "algorithms", "complexity analysis"].
-
-Decision:
-{"decision": "APPROVE", "equivalency_score": 95, "confidence": "HIGH", "reasons": [{"text": "Credits match exactly (3 credits source = 3 credits target)", "citations": [{"chunk_id": "c-001"}]}, {"text": "All required topics covered: data structures, algorithms, complexity analysis", "citations": [{"chunk_id": "c-002"}]}], "gaps": [], "bridge_plan": [], "missing_info_requests": []}
-
-### Example 2: DENY
-Evidence: Source course has 2 credits (chunk_id: "c-010"), covers introductory programming only (chunk_id: "c-011"), no lab component (chunk_id: "c-012").
-Target: 4 credits, required topics: ["operating systems", "process management", "memory management"], lab required.
-
-Decision:
-{"decision": "DENY", "equivalency_score": 10, "confidence": "HIGH", "reasons": [], "gaps": [{"text": "Credits far below target (2 vs 4 required)", "severity": "HARD", "citations": [{"chunk_id": "c-010"}]}, {"text": "Course content (introductory programming) does not cover any required OS topics", "severity": "HARD", "citations": [{"chunk_id": "c-011"}]}, {"text": "No lab component but target requires lab", "severity": "HARD", "citations": [{"chunk_id": "c-012"}]}], "bridge_plan": [], "missing_info_requests": []}
-
-### Example 3: NEEDS_MORE_INFO
-Evidence: Source course title is "Advanced Computing" (chunk_id: "c-020"), credits are not stated in the document (unknown), topics list not found in syllabus.
-Target: 3 credits, required topics: ["machine learning", "neural networks"].
-
-Decision:
-{"decision": "NEEDS_MORE_INFO", "equivalency_score": 0, "confidence": "LOW", "reasons": [], "gaps": [{"text": "Credit hours not found in uploaded documents", "severity": "INFO_MISSING", "citations": [{"chunk_id": "c-020"}]}, {"text": "Course topics and learning outcomes not available in provided materials", "severity": "INFO_MISSING", "citations": [{"chunk_id": "c-020"}]}], "bridge_plan": [], "missing_info_requests": ["Provide official catalog entry or syllabus showing credit hours", "Provide course syllabus with topics list or learning outcomes"]}
-
-### Example 4: APPROVE_WITH_BRIDGE
-Evidence: Source course has 3 credits (chunk_id: "c-030"), covers databases, SQL, normalization, transactions (chunk_id: "c-031"), includes assignments but no group project (chunk_id: "c-032").
-Target: 3 credits, required topics: ["databases", "SQL", "normalization", "transactions", "NoSQL databases"].
-
-Decision:
-{"decision": "APPROVE_WITH_BRIDGE", "equivalency_score": 82, "confidence": "MEDIUM", "reasons": [{"text": "Credits match (3 = 3)", "citations": [{"chunk_id": "c-030"}]}, {"text": "Covers 4 of 5 required topics: databases, SQL, normalization, transactions", "citations": [{"chunk_id": "c-031"}]}], "gaps": [{"text": "NoSQL databases topic not covered in source course - this is a supplementary topic that can be bridged", "severity": "FIXABLE", "citations": [{"chunk_id": "c-031"}]}], "bridge_plan": ["Complete a supplementary module on NoSQL databases (estimated 2-3 weeks self-study)"], "missing_info_requests": []}
-"""
 
 
 def _format_evidence_for_prompt(
@@ -228,6 +156,7 @@ def call_llm_decision(
     Returns:
         DecisionResult (same schema the deterministic engine returns)
     """
+    system_prompt = _load_system_prompt()
     user_message = build_decision_prompt(packet, evidence_rows, chunks_by_evidence)
 
     client = openai.OpenAI()
@@ -236,7 +165,7 @@ def call_llm_decision(
         model=model,
         temperature=0.2,
         messages=[
-            {"role": "system", "content": SYSTEM_PROMPT + "\n\n" + FEW_SHOT_EXAMPLES},
+            {"role": "system", "content": system_prompt},
             {"role": "user", "content": user_message},
         ],
         response_format={"type": "json_object"},
@@ -250,7 +179,6 @@ def call_llm_decision(
 
 def _parse_llm_response(data: dict) -> DecisionResult:
     """Parse the JSON response from GPT into a DecisionResult."""
-    # Map decision string to enum
     decision = Decision(data["decision"])
     confidence = Confidence(data.get("confidence", "MEDIUM"))
     score = int(data.get("equivalency_score", 0))
@@ -277,7 +205,12 @@ def _parse_llm_response(data: dict) -> DecisionResult:
             citations=citations,
         ))
 
+    # Handle both bridge_plan (old format) and bridge_plan_items (new format from policy.md)
     bridge_plan = data.get("bridge_plan", [])
+    if not bridge_plan:
+        bridge_plan_items = data.get("bridge_plan_items", [])
+        bridge_plan = [item.get("text", str(item)) if isinstance(item, dict) else item for item in bridge_plan_items]
+
     missing_info = data.get("missing_info_requests", [])
 
     return DecisionResult(
