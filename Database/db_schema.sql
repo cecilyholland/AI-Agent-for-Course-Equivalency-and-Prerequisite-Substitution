@@ -19,6 +19,8 @@ CREATE TABLE requests (
                     'ai_recommendation',
                     'review_pending',
                     'reviewed',
+                    'pending_committee',
+                    'committee_decided',
                     'invalid'
                   ))
 );
@@ -233,6 +235,43 @@ CREATE INDEX idx_reviewers_created_at ON reviewers(created_at);
 
 CREATE INDEX idx_requests_assigned_reviewer_id ON requests(assigned_reviewer_id);
 
+-- case_committee assigns committee members to a case.
+-- Members are randomly chosen from reviewers, excluding the assigned reviewer.
+-- Committee is always 3 members (odd for majority vote).
+CREATE TABLE case_committee (
+  request_id        UUID NOT NULL REFERENCES requests(request_id) ON DELETE CASCADE,
+  reviewer_id       UUID NOT NULL REFERENCES reviewers(reviewer_id) ON DELETE CASCADE,
+  assigned_at       TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  PRIMARY KEY (request_id, reviewer_id)
+);
+
+CREATE INDEX idx_case_committee_request_id ON case_committee(request_id);
+
+
+-- committee_votes records blind votes from committee members after the reviewer decision.
+-- The assigned reviewer for the case CANNOT vote.
+-- Members cannot see each other's votes (enforced in frontend), only the reviewer's decision.
+CREATE TABLE committee_votes (
+  vote_id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  request_id        UUID NOT NULL REFERENCES requests(request_id) ON DELETE CASCADE,
+
+  created_at        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+
+  -- voter must be on the committee for this case
+  voter_id          UUID NOT NULL REFERENCES reviewers(reviewer_id) ON DELETE RESTRICT,
+  action            TEXT NOT NULL CHECK (action IN ('approve', 'deny')),
+  comment           TEXT NOT NULL DEFAULT '',
+
+  -- must be an assigned committee member
+  FOREIGN KEY (request_id, voter_id) REFERENCES case_committee(request_id, reviewer_id)
+);
+
+-- find all committee votes for a specific request
+CREATE INDEX idx_committee_votes_request_id ON committee_votes(request_id);
+-- prevent the same person from voting twice on the same case
+CREATE UNIQUE INDEX idx_committee_votes_unique_voter ON committee_votes(request_id, voter_id);
+
+
 -- tighten review_actions reviewer_id from TEXT -> UUID and require it
 ALTER TABLE review_actions
   ALTER COLUMN reviewer_id TYPE UUID USING reviewer_id::uuid;
@@ -240,8 +279,15 @@ ALTER TABLE review_actions
 ALTER TABLE review_actions
   ALTER COLUMN reviewer_id SET NOT NULL;
 
-ALTER TABLE review_actions
-  ADD CONSTRAINT fk_review_actions_reviewer
-  FOREIGN KEY (reviewer_id) REFERENCES reviewers(reviewer_id) ON DELETE RESTRICT;
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint WHERE conname = 'fk_review_actions_reviewer'
+  ) THEN
+    ALTER TABLE review_actions
+      ADD CONSTRAINT fk_review_actions_reviewer
+      FOREIGN KEY (reviewer_id) REFERENCES reviewers(reviewer_id) ON DELETE RESTRICT;
+  END IF;
+END $$;
 
 

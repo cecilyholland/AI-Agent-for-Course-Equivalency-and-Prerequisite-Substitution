@@ -33,6 +33,8 @@ from app.models import (
     DecisionResult,
     GroundedEvidence,
     Reviewer,
+    CommitteeAssignment,
+    CommitteeVote,
 )
 from app.schemas import (
     CaseOut,
@@ -45,6 +47,9 @@ from app.schemas import (
     DecisionResultIn,
     ReviewerCreateIn,
     ReviewerOut,
+    CommitteeVoteIn,
+    CommitteeMemberOut,
+    CommitteeInfoOut,
 )
 import httpx
 from decision_engine.contracts import (
@@ -55,6 +60,7 @@ from decision_engine.contracts import (
     EvidenceField,
     decide,
 )
+from decision_engine.llm_decision import call_llm_decision
 
 
 # Database setup
@@ -97,6 +103,8 @@ DB_TO_FE_STATUS = {
     "extracting": "EXTRACTING",
     "ai_recommendation": "AI_RECOMMENDATION",
     "reviewed": "REVIEWED",
+    "pending_committee": "PENDING_COMMITTEE",
+    "committee_decided": "COMMITTEE_DECIDED",
     "invalid": "INVALID",
 }
 
@@ -219,6 +227,13 @@ def build_audit_log(db: Session, request_id: str) -> Dict[str, Any]:
         .all()
     )
 
+    committee_votes = (
+        db.query(CommitteeVote)
+        .filter(CommitteeVote.request_id == request_id)
+        .order_by(CommitteeVote.created_at.asc())
+        .all()
+    )
+
     return {
         "extractionRuns": [
             {
@@ -254,6 +269,14 @@ def build_audit_log(db: Session, request_id: str) -> Dict[str, Any]:
                 "createdAt": a.created_at,
             }
             for a in review_actions
+        ],
+        "committeeVotes": [
+            {
+                "action": v.action,
+                "comment": v.comment,
+                "createdAt": v.created_at,
+            }
+            for v in committee_votes
         ],
     }
 
@@ -366,7 +389,14 @@ def run_decision_for_case_and_run(
 
             return decision_run.decision_run_id
 
-        engine_result = decide(packet)
+        # --- OLD deterministic decision engine (commented out) ---
+        # engine_result = decide(packet)
+        # --- END OLD ---
+
+        # --- NEW: LLM-based decision via OpenAI GPT ---
+        chunks_by_evidence = fetch_chunks_by_evidence(db, evidence_rows)
+        engine_result = call_llm_decision(packet, evidence_rows, chunks_by_evidence)
+        # --- END NEW ---
 
         needs_more_info = (engine_result.decision.value == "NEEDS_MORE_INFO")
         missing_fields = (
@@ -441,13 +471,23 @@ def run_extraction_and_decision(caseId: str):
             print(f"[background] Extraction failed for case {caseId}: {e}")
             return
 
+        print(f"[background] Extraction done for case {caseId}, run_id={extraction_run_id_str}")
+
         db.expire_all()
         case_uuid = uuid.UUID(caseId)
         req = db.query(Request).filter(Request.request_id == case_uuid).first()
         if req and req.status == "ready_for_decision":
             extraction_run_uuid = uuid.UUID(extraction_run_id_str)
+            print(f"[background] Running LLM decision for case {caseId}...")
             run_decision_for_case_and_run(db, case_uuid, extraction_run_uuid)
             db.commit()
+            print(f"[background] Decision complete for case {caseId}, status={req.status}")
+        else:
+            print(f"[background] Skipping decision for case {caseId}: status={req.status if req else 'NOT FOUND'}")
+    except Exception as e:
+        print(f"[background] ERROR in run_extraction_and_decision for case {caseId}: {e}")
+        import traceback
+        traceback.print_exc()
     finally:
         db.close()
 
@@ -480,6 +520,7 @@ def create_case(
         db.add(req)
         db.commit()
         db.refresh(req)
+
 
     try:
         log_event(
@@ -728,16 +769,224 @@ def submit_review(
         },
     )
 
-    req.status = "reviewed"
-    req.updated_at = now_utc()
+    # After reviewer approves or denies, assign committee and move to pending_committee
+    if action_db in ("approve", "deny"):
+        # Pick 3 random reviewers who are NOT the assigned reviewer
+        eligible = (
+            db.query(Reviewer)
+            .filter(Reviewer.reviewer_id != req.assigned_reviewer_id)
+            .order_by(text("RANDOM()"))
+            .limit(3)
+            .all()
+        )
 
-    log_event(
-        request_id=str(req.request_id),
-        status=req.status,
-        actor="system",
-        event="StatusChange",
-        extra={"to": req.status, "set_by": "review"},
+        for member in eligible:
+            db.add(CommitteeAssignment(
+                request_id=case_uuid,
+                reviewer_id=member.reviewer_id,
+            ))
+
+        req.status = "pending_committee"
+        req.updated_at = now_utc()
+
+        log_event(
+            request_id=str(req.request_id),
+            status=req.status,
+            actor="system",
+            event="StatusChange",
+            extra={
+                "to": "pending_committee",
+                "set_by": "review",
+                "committee_size": len(eligible),
+                "committee_members": [str(m.reviewer_id) for m in eligible],
+            },
+        )
+    else:
+        # request_info → keep at reviewed or needs_info
+        req.status = "reviewed"
+        req.updated_at = now_utc()
+
+        log_event(
+            request_id=str(req.request_id),
+            status=req.status,
+            actor="system",
+            event="StatusChange",
+            extra={"to": req.status, "set_by": "review"},
+        )
+
+    db.commit()
+    db.refresh(req)
+    return case_to_out(req)
+
+
+@app.get("/api/cases/{caseId}/committee", response_model=CommitteeInfoOut)
+def get_committee(
+    caseId: str,
+    reviewerId: str = Query(...),
+    db: Session = Depends(get_db),
+):
+    try:
+        case_uuid = uuid.UUID(caseId)
+        reviewer_uuid = uuid.UUID(reviewerId)
+    except ValueError:
+        raise HTTPException(status_code=422, detail="Invalid UUID")
+
+    req = db.query(Request).filter(Request.request_id == case_uuid).first()
+    if not req:
+        raise HTTPException(status_code=404, detail="Case not found")
+
+    # Check if this reviewer is a committee member for this case
+    membership = (
+        db.query(CommitteeAssignment)
+        .filter(
+            CommitteeAssignment.request_id == case_uuid,
+            CommitteeAssignment.reviewer_id == reviewer_uuid,
+        )
+        .first()
     )
+    if not membership:
+        raise HTTPException(status_code=403, detail="Reviewer is not a committee member for this case")
+
+    # Get all committee members
+    assignments = (
+        db.query(CommitteeAssignment)
+        .filter(CommitteeAssignment.request_id == case_uuid)
+        .all()
+    )
+
+    # Get all votes for this case
+    votes = (
+        db.query(CommitteeVote)
+        .filter(CommitteeVote.request_id == case_uuid)
+        .all()
+    )
+    voted_ids = {v.voter_id for v in votes}
+
+    # Build member list (no vote details — blind voting)
+    members = []
+    for a in assignments:
+        reviewer = db.query(Reviewer).filter(Reviewer.reviewer_id == a.reviewer_id).first()
+        members.append(CommitteeMemberOut(
+            reviewerId=str(a.reviewer_id),
+            reviewerName=reviewer.reviewer_name if reviewer else None,
+            hasVoted=(a.reviewer_id in voted_ids),
+        ))
+
+    # Only show requesting reviewer's own vote
+    my_vote = None
+    for v in votes:
+        if v.voter_id == reviewer_uuid:
+            my_vote = {
+                "action": v.action,
+                "comment": v.comment,
+                "createdAt": v.created_at.isoformat() if v.created_at else None,
+            }
+            break
+
+    # Final decision (if all voted)
+    final_decision = None
+    if req.status == "committee_decided":
+        approve_count = sum(1 for v in votes if v.action == "approve")
+        deny_count = sum(1 for v in votes if v.action == "deny")
+        final_decision = "approve" if approve_count > deny_count else "deny"
+
+    return CommitteeInfoOut(
+        members=members,
+        myVote=my_vote,
+        finalDecision=final_decision,
+    )
+
+
+@app.post("/api/cases/{caseId}/committee/vote", response_model=CaseOut)
+def submit_committee_vote(
+    caseId: str,
+    body: CommitteeVoteIn,
+    db: Session = Depends(get_db),
+):
+    try:
+        case_uuid = uuid.UUID(caseId)
+    except ValueError:
+        raise HTTPException(status_code=422, detail="Invalid caseId")
+
+    req = db.query(Request).filter(Request.request_id == case_uuid).first()
+    if not req:
+        raise HTTPException(status_code=404, detail="Case not found")
+
+    if req.status != "pending_committee":
+        raise HTTPException(status_code=409, detail=f"Case is not pending committee review (status={req.status})")
+
+    # Verify voter is on the committee
+    membership = (
+        db.query(CommitteeAssignment)
+        .filter(
+            CommitteeAssignment.request_id == case_uuid,
+            CommitteeAssignment.reviewer_id == body.reviewerId,
+        )
+        .first()
+    )
+    if not membership:
+        raise HTTPException(status_code=403, detail="Reviewer is not a committee member for this case")
+
+    # Check for duplicate vote
+    existing_vote = (
+        db.query(CommitteeVote)
+        .filter(
+            CommitteeVote.request_id == case_uuid,
+            CommitteeVote.voter_id == body.reviewerId,
+        )
+        .first()
+    )
+    if existing_vote:
+        raise HTTPException(status_code=409, detail="Committee member has already voted on this case")
+
+    # Record vote
+    db.add(CommitteeVote(
+        request_id=case_uuid,
+        voter_id=body.reviewerId,
+        action=body.action,
+        comment=body.comment,
+        created_at=now_utc(),
+    ))
+    db.flush()
+
+    # Check if all committee members have voted
+    total_members = (
+        db.query(CommitteeAssignment)
+        .filter(CommitteeAssignment.request_id == case_uuid)
+        .count()
+    )
+    total_votes = (
+        db.query(CommitteeVote)
+        .filter(CommitteeVote.request_id == case_uuid)
+        .count()
+    )
+
+    if total_votes >= total_members:
+        # All voted — determine majority decision
+        all_votes = (
+            db.query(CommitteeVote)
+            .filter(CommitteeVote.request_id == case_uuid)
+            .all()
+        )
+        approve_count = sum(1 for v in all_votes if v.action == "approve")
+        deny_count = sum(1 for v in all_votes if v.action == "deny")
+        final_decision = "approve" if approve_count > deny_count else "deny"
+
+        req.status = "committee_decided"
+        req.updated_at = now_utc()
+
+        log_event(
+            request_id=str(req.request_id),
+            status=req.status,
+            actor="system",
+            event="CommitteeDecided",
+            extra={
+                "final_decision": final_decision,
+                "approve_count": approve_count,
+                "deny_count": deny_count,
+                "total_members": total_members,
+            },
+        )
 
     db.commit()
     db.refresh(req)
@@ -748,6 +997,7 @@ def submit_review(
 def list_cases(
     status: Optional[str] = Query(None),
     studentId: Optional[str] = Query(None),
+    committeeReviewerId: Optional[str] = Query(None),
     db: Session = Depends(get_db),
 ):
     query = db.query(Request)
@@ -757,6 +1007,16 @@ def list_cases(
 
     if studentId:
         query = query.filter(Request.student_id == studentId)
+
+    if committeeReviewerId:
+        try:
+            committee_uuid = uuid.UUID(committeeReviewerId)
+        except ValueError:
+            raise HTTPException(status_code=422, detail="Invalid committeeReviewerId")
+        query = query.join(
+            CommitteeAssignment,
+            CommitteeAssignment.request_id == Request.request_id,
+        ).filter(CommitteeAssignment.reviewer_id == committee_uuid)
 
     cases = query.order_by(Request.created_at.desc()).all()
 
@@ -962,7 +1222,14 @@ def complete_extraction(caseId: str, body: ExtractionCompleteIn, db: Session = D
             req.updated_at = now_utc()
 
         else:
-            engine_result = decide(packet)
+            # --- OLD deterministic decision engine (commented out) ---
+            # engine_result = decide(packet)
+            # --- END OLD ---
+
+            # --- NEW: LLM-based decision via OpenAI GPT ---
+            chunks_by_evidence = fetch_chunks_by_evidence(db, evidence_rows)
+            engine_result = call_llm_decision(packet, evidence_rows, chunks_by_evidence)
+            # --- END NEW ---
 
             needs_more_info = (engine_result.decision.value == "NEEDS_MORE_INFO")
             missing_fields = (
@@ -1056,12 +1323,16 @@ def decision_run(caseId: str, db: Session = Depends(get_db)):
     if not case:
         raise HTTPException(status_code=404, detail="Case not found")
 
-    if case.status != "ready_for_decision":
+    if case.status not in ("ready_for_decision", "ai_recommendation"):
         raise HTTPException(
             status_code=409,
-            detail=f"Case is not ready_for_decision (status={case.status})",
+            detail=f"Case is not ready for decision (status={case.status})",
         )
+    # Reset status so run_decision_for_case_and_run can proceed
+    case.status = "ready_for_decision"
+    case.updated_at = now_utc()
 
+    # Only block if there's already a completed decision with an actual result
     existing_run = (
         db.query(DecisionRun)
         .filter(
@@ -1071,7 +1342,11 @@ def decision_run(caseId: str, db: Session = Depends(get_db)):
         .first()
     )
     if existing_run:
-        raise HTTPException(status_code=409, detail="Decision inputs already built for this case")
+        has_result = db.query(DecisionResult).filter(
+            DecisionResult.decision_run_id == existing_run.decision_run_id
+        ).first()
+        if has_result:
+            raise HTTPException(status_code=409, detail="Decision already completed for this case")
 
     docs = (
         db.query(Document)
@@ -1091,26 +1366,30 @@ def decision_run(caseId: str, db: Session = Depends(get_db)):
     if not evidence:
         raise HTTPException(status_code=409, detail="No grounded evidence for this case")
 
-    decision_inputs = build_decision_inputs(case, docs, evidence)
-
-    run = DecisionRun(
-        request_id=case_uuid,
-        status="completed",
-        started_at=now_utc(),
-        finished_at=now_utc(),
-        error_message=None,
-        decision_inputs=decision_inputs,
+    # Find the latest extraction run for this case
+    latest_extraction = (
+        db.query(ExtractionRun)
+        .filter(
+            ExtractionRun.request_id == case_uuid,
+            ExtractionRun.status == "completed",
+        )
+        .order_by(ExtractionRun.created_at.desc())
+        .first()
     )
-    db.add(run)
+    if not latest_extraction:
+        raise HTTPException(status_code=409, detail="No completed extraction run for this case")
 
+    extraction_run_id = latest_extraction.extraction_run_id
+
+    # Use the main decision flow which calls the LLM
+    decision_run_id = run_decision_for_case_and_run(db, case_uuid, extraction_run_id)
     db.commit()
-    db.refresh(run)
 
     return {
-        "message": "Decision inputs built and stored",
+        "message": "LLM decision completed",
         "caseId": str(case_uuid),
-        "decisionRunId": str(run.decision_run_id),
-        "status": run.status,
+        "decisionRunId": str(decision_run_id),
+        "status": case.status,
     }
 
 
@@ -1327,7 +1606,11 @@ def build_contracts_packet(case: Request, evidence_rows: list[GroundedEvidence])
         required_outcomes=[],
     )
 
-    policy = PolicyConfig(require_topics_or_outcomes=False)
+    policy = PolicyConfig(
+        require_topics_or_outcomes=False,
+        approve_threshold=95,
+        bridge_threshold=80,
+    )
 
     return DecisionInputsPacket(
         case_id=str(case.request_id),
@@ -1335,6 +1618,41 @@ def build_contracts_packet(case: Request, evidence_rows: list[GroundedEvidence])
         target_course=target,
         policy=policy,
     )
+
+
+def fetch_chunks_by_evidence(db: Session, evidence_rows) -> dict:
+    """
+    Query citation_chunks for each evidence row via the evidence_citations join table.
+    Returns dict mapping str(evidence_id) -> list of chunk dicts.
+    """
+    if not evidence_rows:
+        return {}
+
+    import uuid as uuid_mod
+    evidence_ids = [uuid_mod.UUID(str(e.evidence_id)) for e in evidence_rows]
+
+    rows = db.execute(
+        text("""
+            SELECT ec.evidence_id, cc.chunk_uuid, cc.page_num, cc.snippet_text, cc.full_text
+            FROM evidence_citations ec
+            JOIN citation_chunks cc ON cc.chunk_uuid = ec.chunk_uuid
+            WHERE ec.evidence_id = ANY(:ids)
+        """),
+        {"ids": evidence_ids},
+    ).fetchall()
+
+    result = {}
+    for row in rows:
+        ev_id = str(row[0])
+        chunk_dict = {
+            "chunk_uuid": str(row[1]),
+            "page_num": row[2],
+            "snippet_text": row[3],
+            "full_text": row[4],
+        }
+        result.setdefault(ev_id, []).append(chunk_dict)
+
+    return result
 
 
 def validate_packet_or_raise(packet: DecisionInputsPacket) -> list[str]:

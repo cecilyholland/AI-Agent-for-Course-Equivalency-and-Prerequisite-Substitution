@@ -70,6 +70,24 @@ class ExtractionCompleteIn(BaseModel):
 
 class DecisionResultIn(BaseModel):
     decisionRunId: str
-    resultJson: Dict[str, Any]              
-    needsMoreInfo: bool = False             
-    missingFields: Optional[Dict[str, Any]] = None  
+    resultJson: Dict[str, Any]
+    needsMoreInfo: bool = False
+    missingFields: Optional[Dict[str, Any]] = None
+
+
+class CommitteeVoteIn(BaseModel):
+    reviewerId: UUID
+    action: Literal["approve", "deny"]
+    comment: str = ""
+
+
+class CommitteeMemberOut(BaseModel):
+    reviewerId: str
+    reviewerName: Optional[str]
+    hasVoted: bool
+
+
+class CommitteeInfoOut(BaseModel):
+    members: List[CommitteeMemberOut]
+    myVote: Optional[Dict[str, Any]] = None
+    finalDecision: Optional[str] = None
