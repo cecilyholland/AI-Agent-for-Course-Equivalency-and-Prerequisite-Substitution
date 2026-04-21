@@ -1,6 +1,19 @@
-﻿approve_threshold: 80
-bridge_threshold: 65
+# Score band thresholds (0-100 equivalency score)
+# Bands: >=approve → APPROVE
+#        >=bridge  → APPROVE_WITH_BRIDGE
+#        >=needs_info → NEEDS_MORE_INFO
+#        below     → DENY
+approve_threshold: 90
+bridge_threshold: 80
+needs_info_threshold: 70
 
+# Behavior toggles
 require_lab_parity: true
 require_credits_known: true
 require_topics_or_outcomes: true
+
+# Configurable rules (default-off; skipped when evidence is unknown)
+min_grade: null              # e.g. "C" or "C-" to enable
+min_contact_hours: 0         # 0 = disabled
+max_course_age_years: 0      # 0 = disabled
+must_include_topics: []      # topics that must appear in source course
