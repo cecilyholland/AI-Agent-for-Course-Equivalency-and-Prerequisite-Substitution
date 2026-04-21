@@ -6,6 +6,7 @@ import uuid
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 import json
+import yaml
 
 from fastapi import (
     FastAPI,
@@ -1595,22 +1596,67 @@ def map_evidence_rows_to_course_evidence(evidence_rows: list[GroundedEvidence]) 
 
     return CourseEvidence(**fields)
 
+CONFIG_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "config")
 
-def build_contracts_packet(case: Request, evidence_rows: list[GroundedEvidence]) -> DecisionInputsPacket:
-    source = map_evidence_rows_to_course_evidence(evidence_rows)
 
-    target = TargetCourseProfile(
+def load_policy_config() -> PolicyConfig:
+    path = os.path.join(CONFIG_DIR, "policy.yaml")
+    with open(path, "r", encoding="utf-8") as f:
+        data = yaml.safe_load(f) or {}
+    return PolicyConfig(**data)
+
+
+def _normalize_course_code(code: Optional[str]) -> str:
+    """Normalize 'cpsc 2150', 'CPSC-2150', 'cpsc2150' -> 'CPSC-2150'."""
+    if not code:
+        return ""
+    import re
+    s = code.strip().upper()
+    s = re.sub(r"[\s_]+", "-", s)
+    s = re.sub(r"([A-Z])(\d)", r"\1-\2", s)
+    s = re.sub(r"-+", "-", s)
+    return s
+
+
+def load_target_profile(course_requested: Optional[str]) -> TargetCourseProfile:
+    """
+    Look up the requested course in config/target_courses.yaml. Falls back to a
+    permissive default profile if the course is not configured.
+    """
+    path = os.path.join(CONFIG_DIR, "target_courses.yaml")
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            data = yaml.safe_load(f) or {}
+    except FileNotFoundError:
+        data = {}
+
+    targets = (data.get("targets") or {})
+    code = _normalize_course_code(course_requested)
+
+    profile_data = targets.get(code)
+    if profile_data:
+        return TargetCourseProfile(
+            target_credits=profile_data.get("target_credits", 3),
+            target_lab_required=bool(profile_data.get("target_lab_required", False)),
+            required_topics=profile_data.get("required_topics", []) or [],
+            required_outcomes=profile_data.get("required_outcomes", []) or [],
+        )
+
+    # fallback: permissive profile — GPT handles per-target reasoning via its prompt,
+    # and the rule engine gives full credit for components with no requirements.
+    print(f"[build_contracts_packet] No target profile for '{course_requested}' (normalized '{code}'); using fallback.")
+    return TargetCourseProfile(
         target_credits=3,
         target_lab_required=False,
         required_topics=[],
         required_outcomes=[],
     )
 
-    policy = PolicyConfig(
-        require_topics_or_outcomes=False,
-        approve_threshold=95,
-        bridge_threshold=80,
-    )
+
+def build_contracts_packet(case: Request, evidence_rows: list[GroundedEvidence]) -> DecisionInputsPacket:
+    source = map_evidence_rows_to_course_evidence(evidence_rows)
+    target = load_target_profile(case.course_requested)
+    policy = load_policy_config()
 
     return DecisionInputsPacket(
         case_id=str(case.request_id),
@@ -1692,7 +1738,7 @@ def generate_decision_packet(engine_result) -> dict:
 
     if decision == "APPROVE":
         why = "The source course meets the credit and content requirements under the current policy."
-    elif decision == "BRIDGE":
+    elif decision == "APPROVE_WITH_BRIDGE":
         why = "The source course is close to equivalent but requires bridging requirements."
     elif decision == "DENY":
         why = "The source course does not meet the minimum equivalency threshold under the current policy."

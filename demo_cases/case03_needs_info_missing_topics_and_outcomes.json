@@ -1,7 +1,20 @@
 {
   "facts": [
-    {"factType":"course","factKey":"credits","factValue":"3","unknown":false},
-    {"factType":"course","factKey":"topics","unknown":true},
-    {"factType":"course","factKey":"outcomes","unknown":true}
+    {
+      "factType": "course",
+      "factKey": "credits",
+      "factValue": "3",
+      "unknown": false
+    },
+    {
+      "factType": "course",
+      "factKey": "topics",
+      "unknown": true
+    },
+    {
+      "factType": "course",
+      "factKey": "outcomes",
+      "unknown": true
+    }
   ]
 }
