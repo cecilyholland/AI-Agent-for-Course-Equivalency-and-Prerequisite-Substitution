@@ -1,0 +1,18 @@
+.committee-vote-badge {
+  display: inline-block;
+  padding: 3px 12px;
+  border-radius: var(--radius-sm);
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+}
+
+.committee-vote-badge--voted {
+  background-color: var(--color-reviewed);
+  color: #ffffff;
+}
+
+.committee-vote-badge--pending {
+  background-color: var(--color-pending);
+  color: #ffffff;
+}

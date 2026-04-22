@@ -11,6 +11,8 @@ const statusColorMap = {
   APPROVED: "var(--color-approve)",
   DENIED: "var(--color-deny)",
   INVALID: "var(--color-deny)",
+  PENDING_COMMITTEE: "var(--color-pending)",
+  COMMITTEE_DECIDED: "var(--color-reviewed)",
 };
 
 function StatusBadge({ status }) {
