@@ -1,29 +1,37 @@
 {
-"facts": [
+  "_target_course_requested": "CPSC-2150",
+  "facts": [
     {
       "factType": "course",
       "factKey": "credits",
       "factValue": "2",
-      "factJson": null,
       "unknown": false
     },
     {
       "factType": "course",
       "factKey": "topics",
-      "factValue": null,
       "factJson": {
-        "items": ["trees", "graphs", "hashing"]
+        "items": [
+          "arrays",
+          "linked lists",
+          "stacks",
+          "queues",
+          "trees",
+          "graphs",
+          "hashing",
+          "sorting"
+        ]
       },
       "unknown": false
     },
     {
       "factType": "course",
       "factKey": "outcomes",
-      "factValue": null,
       "factJson": {
         "items": [
-          "Analyze time complexity",
-          "Implement common data structures"
+          "Implement common data structures",
+          "Analyze time and space complexity",
+          "Select appropriate data structure for a problem"
         ]
       },
       "unknown": false
@@ -32,7 +40,6 @@
       "factType": "course",
       "factKey": "lab_component",
       "factValue": "false",
-      "factJson": null,
       "unknown": false
     }
   ]

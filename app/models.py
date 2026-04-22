@@ -134,6 +134,40 @@ class DecisionResult(Base):
     # optional list/structure of fields needed
     missing_fields = Column(JSONB)
 
+class Transcript(Base):
+    __tablename__ = "transcripts"
+
+    transcript_id = Column(UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()"))
+    request_id = Column(UUID(as_uuid=True), ForeignKey("requests.request_id", ondelete="CASCADE"), nullable=False)
+    course_code = Column(Text, nullable=False)
+    grade = Column(Text, nullable=False)
+    term_taken = Column(Text, nullable=False)
+    created_at = Column(DateTime(timezone=True), nullable=False, server_default=text("NOW()"))
+
+
+class CommitteeAssignment(Base):
+    __tablename__ = "case_committee"
+
+    request_id = Column(UUID(as_uuid=True), ForeignKey("requests.request_id", ondelete="CASCADE"), primary_key=True)
+    reviewer_id = Column(UUID(as_uuid=True), ForeignKey("reviewers.reviewer_id", ondelete="CASCADE"), primary_key=True)
+    assigned_at = Column(DateTime(timezone=True), nullable=False, server_default=text("NOW()"))
+
+
+class CommitteeVote(Base):
+    __tablename__ = "committee_votes"
+
+    vote_id = Column(UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()"))
+    request_id = Column(UUID(as_uuid=True), ForeignKey("requests.request_id", ondelete="CASCADE"), nullable=False)
+    created_at = Column(DateTime(timezone=True), nullable=False, server_default=text("NOW()"))
+    voter_id = Column(UUID(as_uuid=True), ForeignKey("reviewers.reviewer_id", ondelete="RESTRICT"), nullable=False)
+    action = Column(Text, nullable=False)
+    comment = Column(Text, nullable=False, server_default=text("''"))
+    __table_args__ = (
+        # Prevent duplicate votes from same reviewer on same case
+        {"implicit_returning": True},
+    )
+
+
 class Reviewer(Base):
     __tablename__ = "reviewers"
 
