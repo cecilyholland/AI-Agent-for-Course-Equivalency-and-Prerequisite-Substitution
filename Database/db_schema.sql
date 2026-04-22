@@ -1,6 +1,26 @@
 -- allows postgres to generate UUID
 CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 
+-- courses stores the catalog of offered courses (target courses for equivalency).
+-- Used by the decision engine and frontend filtering.
+CREATE TABLE courses (
+  course_id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  course_code       TEXT NOT NULL UNIQUE,        -- e.g. 'CPSC-2150'
+  display_name      TEXT NOT NULL,               -- e.g. 'Data Structures'
+  department        TEXT NOT NULL,               -- e.g. 'Computer Science' (for frontend filtering)
+  credits           INT NOT NULL,                -- credit hours
+  lab_required      BOOLEAN NOT NULL DEFAULT FALSE,
+  prerequisites     TEXT,                        -- e.g. 'CPSC-1110' (free text)
+  required_topics   JSONB NOT NULL DEFAULT '[]', -- list of topic strings
+  required_outcomes JSONB NOT NULL DEFAULT '[]', -- list of outcome strings
+  description       TEXT,                        -- optional course description
+  created_at        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at        TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX idx_courses_department ON courses(department);
+CREATE INDEX idx_courses_course_code ON courses(course_code);
+
 -- use this when student makes a request to upload their documents
 CREATE TABLE requests (
   request_id      UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -231,11 +251,16 @@ CREATE INDEX idx_review_actions_request_id ON review_actions(request_id);
 -- find review actions by type
 CREATE INDEX idx_review_actions_action ON review_actions(action);
 
--- demo-only reviewers table (minimal)
+-- reviewers table — also serves as the user table for reviewers, committee members, and admins.
+-- Students do NOT have accounts; they submit cases with student_id/student_name only.
 CREATE TABLE reviewers (
   reviewer_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   reviewer_name TEXT,
   utc_id TEXT NOT NULL UNIQUE,
+  password_hash TEXT,                          -- plain text for now; security lead will salt/hash
+  role TEXT NOT NULL DEFAULT 'reviewer' CHECK (role IN ('reviewer', 'admin', 'committee')),
+  expires_at TIMESTAMPTZ,                      -- nullable; account expiration date
+  is_deleted BOOLEAN NOT NULL DEFAULT FALSE,   -- soft delete
   created_at TIMESTAMP WITH TIME ZONE DEFAULT now()
 );
 -- link requests to reviewers 
@@ -273,7 +298,7 @@ CREATE TABLE committee_votes (
 
   -- voter must be on the committee for this case
   voter_id          UUID NOT NULL REFERENCES reviewers(reviewer_id) ON DELETE RESTRICT,
-  action            TEXT NOT NULL CHECK (action IN ('approve', 'deny')),
+  action            TEXT NOT NULL CHECK (action IN ('approve', 'deny', 'needs_more_info', 'approve_with_bridge')),
   comment           TEXT NOT NULL DEFAULT '',
 
   -- must be an assigned committee member
