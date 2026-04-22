@@ -1,0 +1,48 @@
+.committee-members-section {
+  margin-top: 32px;
+}
+
+.committee-members-list {
+  list-style: none;
+  padding: 0;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.committee-member-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.committee-member-item:last-child {
+  border-bottom: none;
+}
+
+.committee-member-name {
+  font-weight: 500;
+  color: var(--color-text);
+}
+
+.committee-vote-badge {
+  display: inline-block;
+  padding: 3px 12px;
+  border-radius: var(--radius-sm);
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+}
+
+.committee-vote-badge--voted {
+  background-color: var(--color-reviewed);
+  color: #ffffff;
+}
+
+.committee-vote-badge--pending {
+  background-color: var(--color-pending);
+  color: #ffffff;
+}

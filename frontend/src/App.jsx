@@ -6,6 +6,9 @@ import StudentCaseView from "./pages/StudentCaseView";
 import StudentNewCase from "./pages/StudentNewCase";
 import ReviewerDashboard from "./pages/ReviewerDashboard";
 import ReviewerCaseReview from "./pages/ReviewerCaseReview";
+import CommitteeDashboard from "./pages/CommitteeDashboard";
+import CommitteeCaseReview from "./pages/CommitteeCaseReview";
+import AdminDashboard from "./pages/AdminDashboard";
 import "./App.css";
 
 function RequireAuth({ role, children }) {
@@ -16,7 +19,8 @@ function RequireAuth({ role, children }) {
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
-  if (role && user.role !== role) {
+  const allowed = Array.isArray(role) ? role : [role];
+  if (role && !allowed.includes(user.role)) {
     return <Navigate to="/login" replace />;
   }
 
@@ -39,7 +43,14 @@ function NavBar() {
         )}
 
         {user && user.role === "reviewer" && (
-          <Link to="/reviewer">Dashboard</Link>
+          <>
+            <Link to="/reviewer">Dashboard</Link>
+            <Link to="/reviewer/committee">Committee Cases</Link>
+          </>
+        )}
+
+        {user && user.role === "admin" && (
+          <Link to="/admin">Admin Dashboard</Link>
         )}
 
         {user && (
@@ -103,6 +114,32 @@ function AppRoutes() {
         element={
           <RequireAuth role="reviewer">
             <ReviewerCaseReview />
+          </RequireAuth>
+        }
+      />
+
+      <Route
+        path="/admin"
+        element={
+          <RequireAuth role="admin">
+            <AdminDashboard />
+          </RequireAuth>
+        }
+      />
+
+      <Route
+        path="/reviewer/committee"
+        element={
+          <RequireAuth role="reviewer">
+            <CommitteeDashboard />
+          </RequireAuth>
+        }
+      />
+      <Route
+        path="/reviewer/committee/case/:id"
+        element={
+          <RequireAuth role="reviewer">
+            <CommitteeCaseReview />
           </RequireAuth>
         }
       />

@@ -1,6 +1,26 @@
 -- allows postgres to generate UUID
 CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 
+-- courses stores the catalog of offered courses (target courses for equivalency).
+-- Used by the decision engine and frontend filtering.
+CREATE TABLE courses (
+  course_id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  course_code       TEXT NOT NULL UNIQUE,        -- e.g. 'CPSC-2150'
+  display_name      TEXT NOT NULL,               -- e.g. 'Data Structures'
+  department        TEXT NOT NULL,               -- e.g. 'Computer Science' (for frontend filtering)
+  credits           INT NOT NULL,                -- credit hours
+  lab_required      BOOLEAN NOT NULL DEFAULT FALSE,
+  prerequisites     TEXT,                        -- e.g. 'CPSC-1110' (free text)
+  required_topics   JSONB NOT NULL DEFAULT '[]', -- list of topic strings
+  required_outcomes JSONB NOT NULL DEFAULT '[]', -- list of outcome strings
+  description       TEXT,                        -- optional course description
+  created_at        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at        TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX idx_courses_department ON courses(department);
+CREATE INDEX idx_courses_course_code ON courses(course_code);
+
 -- use this when student makes a request to upload their documents
 CREATE TABLE requests (
   request_id      UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -19,6 +39,8 @@ CREATE TABLE requests (
                     'ai_recommendation',
                     'review_pending',
                     'reviewed',
+                    'pending_committee',
+                    'committee_decided',
                     'invalid'
                   ))
 );
@@ -26,6 +48,20 @@ CREATE TABLE requests (
 
 -- help filter the request based on status
 CREATE INDEX idx_requests_status ON requests(status);
+
+
+-- transcripts stores student transcript data linked to a case.
+-- Used by policy engine for min_grade and max_course_age_years rules.
+CREATE TABLE transcripts (
+  transcript_id    UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  request_id       UUID NOT NULL REFERENCES requests(request_id) ON DELETE CASCADE,
+  course_code      TEXT NOT NULL,
+  grade            TEXT NOT NULL,
+  term_taken       TEXT NOT NULL,
+  created_at       TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX idx_transcripts_request_id ON transcripts(request_id);
 
 
 -- this table stores information about each uploaded PDF. The PDF does not get stored here, only metadata
@@ -215,11 +251,16 @@ CREATE INDEX idx_review_actions_request_id ON review_actions(request_id);
 -- find review actions by type
 CREATE INDEX idx_review_actions_action ON review_actions(action);
 
--- demo-only reviewers table (minimal)
+-- reviewers table — also serves as the user table for reviewers, committee members, and admins.
+-- Students do NOT have accounts; they submit cases with student_id/student_name only.
 CREATE TABLE reviewers (
   reviewer_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   reviewer_name TEXT,
   utc_id TEXT NOT NULL UNIQUE,
+  password_hash TEXT,                          -- plain text for now; security lead will salt/hash
+  role TEXT NOT NULL DEFAULT 'reviewer' CHECK (role IN ('reviewer', 'admin', 'committee')),
+  expires_at TIMESTAMPTZ,                      -- nullable; account expiration date
+  is_deleted BOOLEAN NOT NULL DEFAULT FALSE,   -- soft delete
   created_at TIMESTAMP WITH TIME ZONE DEFAULT now()
 );
 -- link requests to reviewers 
@@ -233,6 +274,43 @@ CREATE INDEX idx_reviewers_created_at ON reviewers(created_at);
 
 CREATE INDEX idx_requests_assigned_reviewer_id ON requests(assigned_reviewer_id);
 
+-- case_committee assigns committee members to a case.
+-- Members are randomly chosen from reviewers, excluding the assigned reviewer.
+-- Committee is always 3 members (odd for majority vote).
+CREATE TABLE case_committee (
+  request_id        UUID NOT NULL REFERENCES requests(request_id) ON DELETE CASCADE,
+  reviewer_id       UUID NOT NULL REFERENCES reviewers(reviewer_id) ON DELETE CASCADE,
+  assigned_at       TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  PRIMARY KEY (request_id, reviewer_id)
+);
+
+CREATE INDEX idx_case_committee_request_id ON case_committee(request_id);
+
+
+-- committee_votes records blind votes from committee members after the reviewer decision.
+-- The assigned reviewer for the case CANNOT vote.
+-- Members cannot see each other's votes (enforced in frontend), only the reviewer's decision.
+CREATE TABLE committee_votes (
+  vote_id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  request_id        UUID NOT NULL REFERENCES requests(request_id) ON DELETE CASCADE,
+
+  created_at        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+
+  -- voter must be on the committee for this case
+  voter_id          UUID NOT NULL REFERENCES reviewers(reviewer_id) ON DELETE RESTRICT,
+  action            TEXT NOT NULL CHECK (action IN ('approve', 'deny', 'needs_more_info', 'approve_with_bridge')),
+  comment           TEXT NOT NULL DEFAULT '',
+
+  -- must be an assigned committee member
+  FOREIGN KEY (request_id, voter_id) REFERENCES case_committee(request_id, reviewer_id)
+);
+
+-- find all committee votes for a specific request
+CREATE INDEX idx_committee_votes_request_id ON committee_votes(request_id);
+-- prevent the same person from voting twice on the same case
+CREATE UNIQUE INDEX idx_committee_votes_unique_voter ON committee_votes(request_id, voter_id);
+
+
 -- tighten review_actions reviewer_id from TEXT -> UUID and require it
 ALTER TABLE review_actions
   ALTER COLUMN reviewer_id TYPE UUID USING reviewer_id::uuid;
@@ -240,8 +318,15 @@ ALTER TABLE review_actions
 ALTER TABLE review_actions
   ALTER COLUMN reviewer_id SET NOT NULL;
 
-ALTER TABLE review_actions
-  ADD CONSTRAINT fk_review_actions_reviewer
-  FOREIGN KEY (reviewer_id) REFERENCES reviewers(reviewer_id) ON DELETE RESTRICT;
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint WHERE conname = 'fk_review_actions_reviewer'
+  ) THEN
+    ALTER TABLE review_actions
+      ADD CONSTRAINT fk_review_actions_reviewer
+      FOREIGN KEY (reviewer_id) REFERENCES reviewers(reviewer_id) ON DELETE RESTRICT;
+  END IF;
+END $$;
 
 

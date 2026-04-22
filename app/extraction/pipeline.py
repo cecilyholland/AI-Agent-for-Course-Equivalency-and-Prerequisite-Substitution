@@ -16,6 +16,7 @@ from .pdf_text import ensure_searchable_text
 from .chunking import Chunk, chunk_page_text
 from .syllabus_parser import extract_syllabus_facts
 from .catalog_parser import extract_catalog_structure_and_candidates, match_candidates_to_target
+from .transcript_parser import extract_transcript_courses, normalize_course_code
 from dotenv import load_dotenv
 
 from app.security.prompt_injection_defense import PromptInjectionDefense, Decision
@@ -56,9 +57,12 @@ def _engine():
 
 
 def classify_document(filename: str) -> str:
+    """Classify document type based on filename."""
     fn = filename.lower()
     if "syllabus" in fn:
         return "syllabus"
+    if "transcript" in fn:
+        return "transcript"
     return "catalog"
 
 
@@ -267,6 +271,34 @@ def _insert_placeholder_chunk(conn, doc_id: str, run_id: str, filename: str) -> 
         },
     ).fetchone()
     return str(row[0])
+
+
+def _insert_transcript_record(
+    conn,
+    request_id: str,
+    course_code: str,
+    grade: str,
+    term_taken: str,
+) -> str:
+    """Insert a transcript record and return the transcript_id."""
+    row = conn.execute(
+        text(
+            """
+            INSERT INTO transcripts (request_id, course_code, grade, term_taken)
+            VALUES (:request_id, :course_code, :grade, :term_taken)
+            RETURNING transcript_id
+            """
+        ),
+        {
+            "request_id": request_id,
+            "course_code": course_code,
+            "grade": grade,
+            "term_taken": term_taken,
+        },
+    ).fetchone()
+    return str(row[0])
+
+
 # ----------------------------
 # Public API
 # ----------------------------
@@ -313,8 +345,17 @@ def run_extraction(request_id: str, output_dir: str = "Data/Processed/manifests"
         #   - but extraction_runs row persists from Phase A
         # -------------------------
         with engine.begin() as conn:
-            # Phase 1: syllabi first (so we can match catalog docs later)
-            ordered = sorted(docs, key=lambda d: 0 if classify_document(d["filename"]) == "syllabus" else 1)
+            # Phase 1: syllabi first, then catalogs, then transcripts
+            # Transcripts need course codes from syllabi to filter matches
+            def doc_sort_key(d):
+                doc_type = classify_document(d["filename"])
+                if doc_type == "syllabus":
+                    return 0
+                elif doc_type == "catalog":
+                    return 1
+                else:  # transcript
+                    return 2
+            ordered = sorted(docs, key=doc_sort_key)
 
             for d in ordered:
                 doc_id = d["doc_id"]
@@ -428,7 +469,38 @@ def run_extraction(request_id: str, output_dir: str = "Data/Processed/manifests"
                         _link_evidence_to_chunks(conn, ev_id, cite_chunks)
                         doc_manifest["evidence_written"] += 1
 
-                else:
+                elif doc_type == "transcript":
+                    # Extract transcript courses and filter to those matching syllabus
+                    all_transcript_courses = extract_transcript_courses(pages_text)
+                    _log(f"Transcript extracted {len(all_transcript_courses)} courses")
+
+                    # Normalize target codes for matching
+                    normalized_targets = {normalize_course_code(c) for c in target_course_codes}
+
+                    # Filter to matching courses and save to transcripts table
+                    matched_count = 0
+                    for tc in all_transcript_courses:
+                        if tc.course_code in normalized_targets:
+                            _insert_transcript_record(
+                                conn=conn,
+                                request_id=request_id,
+                                course_code=tc.course_code,
+                                grade=tc.grade,
+                                term_taken=tc.term_taken,
+                            )
+                            matched_count += 1
+                            _log(f"Transcript match: {tc.course_code} | {tc.grade} | {tc.term_taken}")
+
+                    doc_manifest["transcript_total"] = len(all_transcript_courses)
+                    doc_manifest["transcript_matched"] = matched_count
+
+                    if matched_count == 0 and target_course_codes:
+                        manifest["warnings"].append(
+                            f"No transcript courses matched syllabus codes {target_course_codes}. "
+                            f"Extracted {len(all_transcript_courses)} courses from transcript."
+                        )
+
+                else:  # catalog
                     structure_type, candidates = extract_catalog_structure_and_candidates(pages_text)
 
                     # 1) Always record catalog structure_type with a safe citation fallback

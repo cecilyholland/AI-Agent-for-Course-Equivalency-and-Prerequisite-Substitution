@@ -45,15 +45,15 @@ def get_demo_reviewer_ids(db: Session) -> list[uuid.UUID]:
         text("""
             SELECT reviewer_id, utc_id, reviewer_name
             FROM reviewers
-            WHERE utc_id IN ('rev001', 'rev002', 'rev003')
+            WHERE utc_id IN ('rev001', 'rev002', 'rev003', 'rev004', 'rev005', 'rev006')
             ORDER BY utc_id
         """)
     ).fetchall()
 
-    if len(rows) != 3:
+    if len(rows) < 4:
         found = [(r[1], r[2]) for r in rows]
         raise RuntimeError(
-            "Expected exactly 3 demo reviewers (rev001, rev002, rev003) "
+            "Expected at least 4 demo reviewers "
             f"but found {len(rows)}: {found}. "
             "Did you run Database/setup_ai_db_demo.sql?"
         )
