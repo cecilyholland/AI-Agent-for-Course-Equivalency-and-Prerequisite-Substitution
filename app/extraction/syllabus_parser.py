@@ -31,6 +31,7 @@ def extract_syllabus_facts(pages_text: list[str]) -> Dict[str, Optional[str]]:
         "credits_or_units": None,
         "description": None,
         "prerequisites": None,
+        "learning_outcomes": None,
     }
 
     # course code like MED 2150
@@ -118,5 +119,16 @@ def extract_syllabus_facts(pages_text: list[str]) -> Dict[str, Optional[str]]:
         tail = pm.group(2)
         tail = re.split(r"\n[A-Z][A-Za-z /&]{3,}\n", tail)[0]
         facts["prerequisites"] = tail.strip()
+
+    # Learning outcomes
+    lom = re.search(
+        r"(Student Learning Outcomes|Learning Outcomes|Course Learning Outcomes|Learning Objectives|Course Objectives)\s*(.+)",
+        text_all,
+        re.IGNORECASE | re.DOTALL,
+    )
+    if lom:
+        tail = lom.group(2)
+        tail = re.split(r"\n[A-Z][A-Za-z /&]{3,}\n", tail)[0]
+        facts["learning_outcomes"] = tail.strip()
 
     return facts
