@@ -36,6 +36,7 @@ from app.models import (
     Reviewer,
     CommitteeAssignment,
     CommitteeVote,
+    Course,
 )
 from app.schemas import (
     CaseOut,
@@ -51,6 +52,12 @@ from app.schemas import (
     CommitteeVoteIn,
     CommitteeMemberOut,
     CommitteeInfoOut,
+    CourseIn,
+    CourseOut,
+    LoginIn,
+    LoginOut,
+    PolicyOut,
+    PolicyUpdateIn,
 )
 import httpx
 from decision_engine.contracts import (
@@ -1760,6 +1767,130 @@ def generate_decision_packet(engine_result) -> dict:
     }
 
 
+# ── Auth ─────────────────────────────────────────────────────────────────
+
+@app.post("/api/auth/login", response_model=LoginOut)
+def login(body: LoginIn, db: Session = Depends(get_db)):
+    """Authenticate a reviewer/admin by utcId and password."""
+    r = db.query(Reviewer).filter(Reviewer.utc_id == body.utcId).first()
+    if not r:
+        raise HTTPException(status_code=401, detail="Invalid credentials")
+
+    if r.is_deleted:
+        raise HTTPException(status_code=401, detail="Account has been deactivated")
+
+    if r.expires_at and r.expires_at < datetime.now(timezone.utc):
+        raise HTTPException(status_code=401, detail="Account has expired")
+
+    # Plain text comparison for now — security lead will replace with hashed check
+    if r.password_hash != body.password:
+        raise HTTPException(status_code=401, detail="Invalid credentials")
+
+    return LoginOut(
+        reviewerId=str(r.reviewer_id),
+        reviewerName=r.reviewer_name,
+        utcId=r.utc_id,
+        role=r.role or "reviewer",
+    )
+
+
+@app.get("/api/auth/me", response_model=LoginOut)
+def get_me(reviewerId: str = Query(...), db: Session = Depends(get_db)):
+    """Return the current user's profile by reviewerId. Frontend calls this on page load."""
+    try:
+        rid = uuid.UUID(reviewerId)
+    except ValueError:
+        raise HTTPException(status_code=422, detail="Invalid reviewerId")
+
+    r = db.query(Reviewer).filter(Reviewer.reviewer_id == rid).first()
+    if not r or r.is_deleted:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    if r.expires_at and r.expires_at < datetime.now(timezone.utc):
+        raise HTTPException(status_code=401, detail="Account has expired")
+
+    return LoginOut(
+        reviewerId=str(r.reviewer_id),
+        reviewerName=r.reviewer_name,
+        utcId=r.utc_id,
+        role=r.role or "reviewer",
+    )
+
+
+# ── Policy ────────────────────────────────────────────────────────────────
+
+def _read_policy_yaml() -> dict:
+    path = os.path.join(CONFIG_DIR, "policy.yaml")
+    with open(path, "r", encoding="utf-8") as f:
+        return yaml.safe_load(f) or {}
+
+
+def _write_policy_yaml(data: dict):
+    path = os.path.join(CONFIG_DIR, "policy.yaml")
+    with open(path, "w", encoding="utf-8") as f:
+        yaml.dump(data, f, default_flow_style=False, sort_keys=False)
+
+
+@app.get("/api/policy", response_model=PolicyOut)
+def get_policy():
+    """Return the current policy configuration."""
+    d = _read_policy_yaml()
+    return PolicyOut(
+        approveThreshold=d.get("approve_threshold", 90),
+        bridgeThreshold=d.get("bridge_threshold", 80),
+        needsInfoThreshold=d.get("needs_info_threshold", 70),
+        requireLabParity=d.get("require_lab_parity", True),
+        requireCreditsKnown=d.get("require_credits_known", True),
+        requireTopicsOrOutcomes=d.get("require_topics_or_outcomes", True),
+        minGrade=d.get("min_grade"),
+        minContactHours=d.get("min_contact_hours", 0),
+        maxCourseAgeYears=d.get("max_course_age_years", 0),
+        mustIncludeTopics=d.get("must_include_topics") or [],
+    )
+
+
+@app.put("/api/policy", response_model=PolicyOut)
+def update_policy(body: PolicyUpdateIn):
+    """Update policy configuration. Only provided fields are changed."""
+    d = _read_policy_yaml()
+
+    if body.approveThreshold is not None:
+        d["approve_threshold"] = body.approveThreshold
+    if body.bridgeThreshold is not None:
+        d["bridge_threshold"] = body.bridgeThreshold
+    if body.needsInfoThreshold is not None:
+        d["needs_info_threshold"] = body.needsInfoThreshold
+    if body.requireLabParity is not None:
+        d["require_lab_parity"] = body.requireLabParity
+    if body.requireCreditsKnown is not None:
+        d["require_credits_known"] = body.requireCreditsKnown
+    if body.requireTopicsOrOutcomes is not None:
+        d["require_topics_or_outcomes"] = body.requireTopicsOrOutcomes
+    if body.minGrade is not None:
+        d["min_grade"] = body.minGrade if body.minGrade != "" else None
+    if body.minContactHours is not None:
+        d["min_contact_hours"] = body.minContactHours
+    if body.maxCourseAgeYears is not None:
+        d["max_course_age_years"] = body.maxCourseAgeYears
+    if body.mustIncludeTopics is not None:
+        d["must_include_topics"] = body.mustIncludeTopics
+
+    _write_policy_yaml(d)
+
+    return PolicyOut(
+        approveThreshold=d.get("approve_threshold", 90),
+        bridgeThreshold=d.get("bridge_threshold", 80),
+        needsInfoThreshold=d.get("needs_info_threshold", 70),
+        requireLabParity=d.get("require_lab_parity", True),
+        requireCreditsKnown=d.get("require_credits_known", True),
+        requireTopicsOrOutcomes=d.get("require_topics_or_outcomes", True),
+        minGrade=d.get("min_grade"),
+        minContactHours=d.get("min_contact_hours", 0),
+        maxCourseAgeYears=d.get("max_course_age_years", 0),
+        mustIncludeTopics=d.get("must_include_topics") or [],
+    )
+
+
 @app.get("/api/reviewers", response_model=list[ReviewerOut])
 def list_reviewers(db: Session = Depends(get_db)):
     reviewers = db.query(Reviewer).order_by(Reviewer.created_at.desc()).all()
@@ -1769,6 +1900,9 @@ def list_reviewers(db: Session = Depends(get_db)):
             reviewerId=str(r.reviewer_id),
             reviewerName=r.reviewer_name,
             utcId=r.utc_id,
+            role=r.role or "reviewer",
+            expiresAt=r.expires_at,
+            isDeleted=r.is_deleted or False,
             createdAt=r.created_at,
         )
         for r in reviewers
@@ -1780,18 +1914,23 @@ def create_reviewer(body: ReviewerCreateIn, db: Session = Depends(get_db)):
     r = Reviewer(
         reviewer_name=body.reviewerName,
         utc_id=body.utcId,
+        password_hash=body.password,
+        role=body.role,
         created_at=now_utc(),
     )
     db.add(r)
     db.commit()
     db.refresh(r)
 
-    return {
-        "reviewerId": str(r.reviewer_id),
-        "reviewerName": r.reviewer_name,
-        "utcId": r.utc_id,
-        "createdAt": r.created_at,
-    }
+    return ReviewerOut(
+        reviewerId=str(r.reviewer_id),
+        reviewerName=r.reviewer_name,
+        utcId=r.utc_id,
+        role=r.role or "reviewer",
+        expiresAt=r.expires_at,
+        isDeleted=r.is_deleted or False,
+        createdAt=r.created_at,
+    )
 
 
 @app.get("/api/reviewers/{reviewerId}", response_model=ReviewerOut)
@@ -1809,8 +1948,162 @@ def get_reviewer(reviewerId: str, db: Session = Depends(get_db)):
         reviewerId=str(r.reviewer_id),
         reviewerName=getattr(r, "reviewer_name", None),
         utcId=r.utc_id,
+        role=r.role or "reviewer",
+        expiresAt=r.expires_at,
+        isDeleted=r.is_deleted or False,
         createdAt=r.created_at,
     )
+
+
+# ── Courses ──────────────────────────────────────────────────────────────
+
+@app.get("/api/courses", response_model=list[CourseOut])
+def list_courses(
+    department: Optional[str] = Query(None),
+    db: Session = Depends(get_db),
+):
+    q = db.query(Course)
+    if department:
+        q = q.filter(Course.department.ilike(department))
+    courses = q.order_by(Course.course_code).all()
+    return [
+        CourseOut(
+            courseId=str(c.course_id),
+            courseCode=c.course_code,
+            displayName=c.display_name,
+            department=c.department,
+            credits=c.credits,
+            labRequired=c.lab_required,
+            prerequisites=c.prerequisites,
+            requiredTopics=c.required_topics or [],
+            requiredOutcomes=c.required_outcomes or [],
+            description=c.description,
+            createdAt=c.created_at,
+            updatedAt=c.updated_at,
+        )
+        for c in courses
+    ]
+
+
+@app.post("/api/courses", response_model=CourseOut, status_code=201)
+def create_course(body: CourseIn, db: Session = Depends(get_db)):
+    existing = db.query(Course).filter(Course.course_code == body.courseCode).first()
+    if existing:
+        raise HTTPException(status_code=409, detail=f"Course {body.courseCode} already exists.")
+
+    c = Course(
+        course_code=body.courseCode,
+        display_name=body.displayName,
+        department=body.department,
+        credits=body.credits,
+        lab_required=body.labRequired,
+        prerequisites=body.prerequisites,
+        required_topics=body.requiredTopics,
+        required_outcomes=body.requiredOutcomes,
+        description=body.description,
+    )
+    db.add(c)
+    db.commit()
+    db.refresh(c)
+
+    return CourseOut(
+        courseId=str(c.course_id),
+        courseCode=c.course_code,
+        displayName=c.display_name,
+        department=c.department,
+        credits=c.credits,
+        labRequired=c.lab_required,
+        prerequisites=c.prerequisites,
+        requiredTopics=c.required_topics or [],
+        requiredOutcomes=c.required_outcomes or [],
+        description=c.description,
+        createdAt=c.created_at,
+        updatedAt=c.updated_at,
+    )
+
+
+@app.get("/api/courses/{courseId}", response_model=CourseOut)
+def get_course(courseId: str, db: Session = Depends(get_db)):
+    try:
+        cid = uuid.UUID(courseId)
+    except ValueError:
+        raise HTTPException(status_code=422, detail="Invalid courseId (must be a UUID)")
+
+    c = db.query(Course).filter(Course.course_id == cid).first()
+    if not c:
+        raise HTTPException(status_code=404, detail="Course not found")
+
+    return CourseOut(
+        courseId=str(c.course_id),
+        courseCode=c.course_code,
+        displayName=c.display_name,
+        department=c.department,
+        credits=c.credits,
+        labRequired=c.lab_required,
+        prerequisites=c.prerequisites,
+        requiredTopics=c.required_topics or [],
+        requiredOutcomes=c.required_outcomes or [],
+        description=c.description,
+        createdAt=c.created_at,
+        updatedAt=c.updated_at,
+    )
+
+
+@app.post("/api/courses/seed-from-csv", status_code=201)
+def seed_courses_from_csv(db: Session = Depends(get_db)):
+    """Load all courses from Data/Processed/ParsedData.csv into the courses table."""
+    import csv
+
+    csv_path = os.path.join(
+        os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+        "Data", "Processed", "ParsedData.csv",
+    )
+    if not os.path.exists(csv_path):
+        raise HTTPException(status_code=404, detail=f"CSV not found at {csv_path}")
+
+    # Track codes we've already seen (handles duplicates within the CSV itself)
+    seen_codes = set()
+    # Also load existing codes from DB
+    existing_codes = {r[0] for r in db.query(Course.course_code).all()}
+
+    inserted = 0
+    skipped = 0
+    with open(csv_path, "r", encoding="utf-8") as f:
+        reader = csv.DictReader(f)
+        for row in reader:
+            course_code = (row.get("course_code") or "").strip()
+            if not course_code or course_code in seen_codes or course_code in existing_codes:
+                skipped += 1
+                continue
+
+            seen_codes.add(course_code)
+
+            # Use credits_min as credits; default to 3 if not parseable
+            try:
+                credits = int(float(row.get("credits_min") or 3))
+            except (ValueError, TypeError):
+                credits = 3
+
+            # subject column serves as department
+            department = (row.get("subject") or "").strip() or "General"
+
+            c = Course(
+                course_code=course_code,
+                display_name=(row.get("title") or "").strip() or course_code,
+                department=department,
+                credits=credits,
+                lab_required=False,
+                prerequisites=(row.get("prerequisites") or "").strip() or None,
+                required_topics=[],
+                required_outcomes=[],
+                description=(row.get("description") or "").strip() or None,
+            )
+            db.add(c)
+            inserted += 1
+
+    db.commit()
+    return {"inserted": inserted, "skipped": skipped}
+
 
 @app.delete("/api/cases/{case_id}")
 def delete_case(case_id: str, db: Session = Depends(get_db)):
