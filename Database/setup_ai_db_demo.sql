@@ -13,4 +13,5 @@ VALUES
   ('David Wright', 'rev006', 'password123', 'reviewer', now())
 ON CONFLICT (utc_id) DO NOTHING;
 
--- Courses are seeded from Data/Processed/ParsedData.csv via POST /api/courses/seed-from-csv
+-- Bulk courses seeded from Data/Processed/ParsedData.csv via POST /api/courses/seed-from-csv
+-- The seed endpoint also applies required_topics/outcomes for target courses from config/target_courses.yaml
