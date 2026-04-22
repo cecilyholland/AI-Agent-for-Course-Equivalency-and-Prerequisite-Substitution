@@ -174,5 +174,26 @@ class Reviewer(Base):
     reviewer_id = Column(UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()"))
     reviewer_name = Column(Text)
     utc_id = Column(String, nullable=False, unique=True)
+    password_hash = Column(Text)
+    role = Column(Text, nullable=False, server_default=text("'reviewer'"))
+    expires_at = Column(DateTime(timezone=True))
+    is_deleted = Column(Boolean, nullable=False, server_default=text("FALSE"))
 
     created_at = Column(DateTime(timezone=True), nullable=False, server_default=text("NOW()"))
+
+
+class Course(Base):
+    __tablename__ = "courses"
+
+    course_id = Column(UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()"))
+    course_code = Column(Text, nullable=False, unique=True)
+    display_name = Column(Text, nullable=False)
+    department = Column(Text, nullable=False)
+    credits = Column(Integer, nullable=False)
+    lab_required = Column(Boolean, nullable=False, server_default=text("FALSE"))
+    prerequisites = Column(Text)
+    required_topics = Column(JSONB, nullable=False, server_default=text("'[]'::jsonb"))
+    required_outcomes = Column(JSONB, nullable=False, server_default=text("'[]'::jsonb"))
+    description = Column(Text)
+    created_at = Column(DateTime(timezone=True), nullable=False, server_default=text("NOW()"))
+    updated_at = Column(DateTime(timezone=True), nullable=False, server_default=text("NOW()"))
