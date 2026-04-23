@@ -1,6 +1,102 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
+import { fetchCourses } from "../services/api";
 import "./StudentNewCase.css";
+
+// ─── Course Picker Modal ─────────────────────────────────────────────────────
+
+const PICKER_PAGE_SIZE = 8;
+
+function CoursePickerModal({ onSelect, onClose }) {
+  const [courses, setCourses] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState("");
+  const [filterDept, setFilterDept] = useState("");
+  const [page, setPage] = useState(1);
+
+  useEffect(() => {
+    fetchCourses().then(setCourses).finally(() => setLoading(false));
+  }, []);
+
+  const filtered = courses.filter((c) => {
+    const q = search.toLowerCase();
+    if (q && !(c.courseCode || "").toLowerCase().includes(q) && !(c.displayName || "").toLowerCase().includes(q)) return false;
+    if (filterDept && c.department !== filterDept) return false;
+    return true;
+  });
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PICKER_PAGE_SIZE));
+  const paged = filtered.slice((page - 1) * PICKER_PAGE_SIZE, page * PICKER_PAGE_SIZE);
+  const depts = [...new Set(courses.map((c) => c.department).filter(Boolean))].sort();
+
+  return (
+    <div className="course-picker-overlay" onClick={onClose}>
+      <div className="course-picker-modal" onClick={(e) => e.stopPropagation()}>
+        <div className="course-picker-header">
+          <h3>Select Target Course</h3>
+          <button className="course-picker-close" onClick={onClose}>&times;</button>
+        </div>
+
+        <div className="course-picker-filters">
+          <input
+            className="course-picker-search"
+            type="text"
+            placeholder="Search by code or name..."
+            value={search}
+            onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+            autoFocus
+          />
+          <select
+            className="course-picker-select"
+            value={filterDept}
+            onChange={(e) => { setFilterDept(e.target.value); setPage(1); }}
+          >
+            <option value="">All Departments</option>
+            {depts.map((d) => <option key={d} value={d}>{d}</option>)}
+          </select>
+        </div>
+
+        {loading ? (
+          <p className="course-picker-empty">Loading courses...</p>
+        ) : filtered.length === 0 ? (
+          <p className="course-picker-empty">No courses match.</p>
+        ) : (
+          <>
+            <table className="course-picker-table">
+              <thead>
+                <tr>
+                  <th>Code</th>
+                  <th>Name</th>
+                  <th>Credits</th>
+                  <th>Department</th>
+                </tr>
+              </thead>
+              <tbody>
+                {paged.map((c) => (
+                  <tr key={c.courseId} className="course-picker-row" onClick={() => onSelect(c)}>
+                    <td><code>{c.courseCode}</code></td>
+                    <td>{c.displayName}</td>
+                    <td>{c.credits}</td>
+                    <td>{c.department || "—"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+
+            {totalPages > 1 && (
+              <div className="course-picker-pagination">
+                <button disabled={page === 1} onClick={() => setPage((p) => p - 1)}>‹</button>
+                <span>{page} / {totalPages}</span>
+                <button disabled={page === totalPages} onClick={() => setPage((p) => p + 1)}>›</button>
+                <span className="course-picker-count">{filtered.length} courses</span>
+              </div>
+            )}
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
 
 export default function StudentNewCase() {
   const navigate = useNavigate();
@@ -8,6 +104,7 @@ export default function StudentNewCase() {
 
   const [studentName, setStudentName] = useState("");
   const [targetCourse, setTargetCourse] = useState("");
+  const [showPicker, setShowPicker] = useState(false);
   const [previousCourse, setPreviousCourse] = useState("");
   const [previousInstitution, setPreviousInstitution] = useState("");
   const [stagedFiles, setStagedFiles] = useState([]);
@@ -154,23 +251,31 @@ export default function StudentNewCase() {
       <section className="new-case__section">
         <h2 className="new-case__section-title">Course Information</h2>
 
-        <label className="new-case__label" htmlFor="target-course">
+        <label className="new-case__label">
           Target Course (at this university)
         </label>
-        <select
-          id="target-course"
-          className="new-case__select"
-          value={targetCourse}
-          onChange={(e) => setTargetCourse(e.target.value)}
+        <button
+          type="button"
+          className="new-case__course-picker-btn"
+          onClick={() => setShowPicker(true)}
         >
-          <option value="">Select a course...</option>
-          <option value="CPSC 2100 - Intro to Programming">CPSC 2100 - Intro to Programming</option>
-          <option value="CPSC 3400 - Data Structures">CPSC 3400 - Data Structures</option>
-          <option value="CPSC 3600 - Computer Networks">CPSC 3600 - Computer Networks</option>
-          <option value="CPSC 4100 - Algorithms">CPSC 4100 - Algorithms</option>
-          <option value="CPSC 4500 - Operating Systems">CPSC 4500 - Operating Systems</option>
-          <option value="CPSC 4600 - Database Systems">CPSC 4600 - Database Systems</option>
-        </select>
+          {targetCourse || "Select a course..."}
+        </button>
+        {targetCourse && (
+          <button
+            type="button"
+            className="new-case__course-clear"
+            onClick={() => setTargetCourse("")}
+          >
+            &times; Clear
+          </button>
+        )}
+        {showPicker && (
+          <CoursePickerModal
+            onSelect={(c) => { setTargetCourse(`${c.courseCode} - ${c.displayName}`); setShowPicker(false); }}
+            onClose={() => setShowPicker(false)}
+          />
+        )}
 
         <label className="new-case__label" htmlFor="prev-course">
           Previous Course Name

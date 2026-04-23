@@ -292,3 +292,174 @@
   gap: 12px;
   justify-content: center;
 }
+
+/* ── Course picker button ── */
+.new-case__course-picker-btn {
+  width: 100%;
+  padding: 10px 14px;
+  font-size: 0.95rem;
+  text-align: left;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  background: var(--color-bg);
+  color: var(--color-text);
+  cursor: pointer;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.new-case__course-picker-btn:hover {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(17, 46, 81, 0.08);
+}
+.new-case__course-clear {
+  margin-top: 6px;
+  background: none;
+  border: none;
+  font-size: 0.8rem;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  padding: 0;
+}
+.new-case__course-clear:hover { color: var(--color-deny); }
+
+/* ── Course picker modal ── */
+.course-picker-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+
+.course-picker-modal {
+  background: var(--color-surface);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 20px 60px rgba(0,0,0,0.25);
+  width: 100%;
+  max-width: 720px;
+  max-height: 85vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.course-picker-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 24px;
+  border-bottom: 1px solid var(--color-border);
+}
+.course-picker-header h3 {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--color-primary);
+  margin: 0;
+}
+.course-picker-close {
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  line-height: 1;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  padding: 0 4px;
+}
+.course-picker-close:hover { color: var(--color-deny); }
+
+.course-picker-filters {
+  display: flex;
+  gap: 10px;
+  padding: 14px 24px;
+  border-bottom: 1px solid var(--color-border);
+}
+.course-picker-search {
+  flex: 1;
+  padding: 9px 12px;
+  font-size: 0.875rem;
+  border: 1.5px solid var(--color-border);
+  border-radius: var(--radius);
+  background: var(--color-bg);
+  color: var(--color-text);
+  transition: border-color 0.15s;
+}
+.course-picker-search:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(17, 46, 81, 0.1);
+}
+.course-picker-select {
+  padding: 9px 12px;
+  font-size: 0.875rem;
+  border: 1.5px solid var(--color-border);
+  border-radius: var(--radius);
+  background: var(--color-bg);
+  color: var(--color-text);
+  cursor: pointer;
+}
+.course-picker-select:focus { outline: none; border-color: var(--color-primary); }
+
+.course-picker-table {
+  width: 100%;
+  border-collapse: collapse;
+  overflow-y: auto;
+}
+.course-picker-table thead th {
+  padding: 10px 16px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-text-muted);
+  border-bottom: 1px solid var(--color-border);
+  text-align: left;
+  background: var(--color-bg);
+  position: sticky;
+  top: 0;
+}
+.course-picker-row {
+  cursor: pointer;
+  transition: background 0.1s;
+}
+.course-picker-row:hover { background: rgba(17, 46, 81, 0.05); }
+.course-picker-row td {
+  padding: 10px 16px;
+  font-size: 0.875rem;
+  border-bottom: 1px solid var(--color-border);
+  color: var(--color-text);
+}
+.course-picker-row td code {
+  font-size: 0.8rem;
+  background: var(--color-bg);
+  padding: 1px 5px;
+  border-radius: 3px;
+}
+
+.course-picker-pagination {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 24px;
+  border-top: 1px solid var(--color-border);
+  font-size: 0.875rem;
+}
+.course-picker-pagination button {
+  padding: 4px 10px;
+  border: 1.5px solid var(--color-border);
+  border-radius: var(--radius);
+  background: var(--color-surface);
+  cursor: pointer;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+.course-picker-pagination button:disabled { opacity: 0.35; cursor: default; }
+.course-picker-pagination button:not(:disabled):hover { border-color: var(--color-primary); }
+.course-picker-count { margin-left: auto; color: var(--color-text-muted); font-size: 0.8rem; }
+
+.course-picker-empty {
+  text-align: center;
+  padding: 32px;
+  color: var(--color-text-muted);
+}
