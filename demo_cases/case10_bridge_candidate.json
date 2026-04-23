@@ -1,4 +1,5 @@
 {
+  "_expected_decision": "APPROVE_WITH_BRIDGE",
   "facts": [
     {
       "factType": "course",

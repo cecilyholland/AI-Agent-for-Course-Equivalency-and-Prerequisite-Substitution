@@ -1,0 +1,12 @@
+case,target,expected,engine,llm,llm_score,llm_conf,eng_vs_expected,llm_vs_expected,llm_vs_engine,error
+case01_approve_full.json,CPSC-2150,APPROVE,APPROVE,APPROVE,100,HIGH,YES,YES,YES,
+case02_needs_info_missing_credits.json,CPSC-1110,NEEDS_MORE_INFO,NEEDS_MORE_INFO,NEEDS_MORE_INFO,0,LOW,YES,YES,YES,
+case03_needs_info_missing_topics_and_outcomes.json,(fallback),NEEDS_MORE_INFO,NEEDS_MORE_INFO,NEEDS_MORE_INFO,20,LOW,YES,YES,YES,
+case04_approve_topics_only.json,(fallback),APPROVE,APPROVE,APPROVE,100,HIGH,YES,YES,YES,
+case05_approve_outcomes_only.json,(fallback),APPROVE,APPROVE,APPROVE,100,HIGH,YES,YES,YES,
+case06_lab_course.json,CPSC-2310,APPROVE,APPROVE,APPROVE,100,HIGH,YES,YES,YES,
+case07_prompt_injection_example.json,CPSC-3300,DENY,DENY,DENY,30,HIGH,YES,YES,YES,
+case08_sparse_course_low_content.json,CPSC-1110,DENY,DENY,DENY,10,HIGH,YES,YES,YES,
+case09_all_unknown.json,(fallback),NEEDS_MORE_INFO,NEEDS_MORE_INFO,NEEDS_MORE_INFO,0,LOW,YES,YES,YES,
+case10_bridge_candidate.json,(fallback),APPROVE_WITH_BRIDGE,APPROVE_WITH_BRIDGE,APPROVE_WITH_BRIDGE,70,MEDIUM,YES,YES,YES,
+case11_approve_with bridge.json,CPSC-2150,APPROVE_WITH_BRIDGE,APPROVE_WITH_BRIDGE,APPROVE_WITH_BRIDGE,90,MEDIUM,YES,YES,YES,

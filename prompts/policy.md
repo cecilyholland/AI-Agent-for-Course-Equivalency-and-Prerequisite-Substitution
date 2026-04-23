@@ -72,7 +72,14 @@ score <  70                    -> DENY
 
 ## Hard rules (veto conditions — override the score)
 
-- **Credit mismatch > 1 (HARD):** If source credits differ from target credits by more than 1, emit a HARD gap and force `DENY` regardless of score. (Off-by-1 is FIXABLE and enters the bridge plan.)
+**Credit rules — read carefully, the off-by-1 case is NOT a veto:**
+
+- **Credit mismatch ≥ 2 (HARD veto):** If source credits differ from target by **2 or more** (e.g., target=3, source=1 or source=5), emit a HARD gap and force `DENY` regardless of score.
+- **Credit off-by-1 (FIXABLE — NOT a veto, do NOT DENY):** If source credits differ from target by exactly 1 (e.g., target=3, source=2 or source=4), treat this as a FIXABLE gap. Add a bridge-plan entry for credit reconciliation. The case remains eligible for `APPROVE_WITH_BRIDGE` (or `APPROVE` if score ≥ 90). **Off-by-1 alone never forces DENY.**
+- **Credit exact match:** No gap, no veto.
+
+**Other veto rules:**
+
 - **Lab required but missing (FIXABLE):** If target requires a lab and source has no lab, emit a FIXABLE gap and a bridge-plan lab entry (can still be APPROVE_WITH_BRIDGE).
 - **No required topics matched (HARD):** If the target has required topics and the source matches *none* of them, force `DENY`.
 - **No required outcomes matched (HARD):** Same rule for learning outcomes.

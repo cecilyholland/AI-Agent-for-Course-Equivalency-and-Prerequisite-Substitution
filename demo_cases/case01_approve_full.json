@@ -1,5 +1,6 @@
 {
   "_target_course_requested": "CPSC-2150",
+  "_expected_decision": "APPROVE",
   "facts": [
     {
       "factType": "course",

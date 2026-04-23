@@ -1,5 +1,6 @@
 {
   "_target_course_requested": "CPSC-1110",
+  "_expected_decision": "DENY",
   "facts": [
     {
       "factType": "course",
