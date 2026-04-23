@@ -31,6 +31,27 @@ CASES = [
     ("CASE08", "Hannah Wright",  "COMM 2310"),    # Leadership and Communication -> Multimedia Journalism
     ("CASE09", "Ivan Novak",     "MATH 2100"),    # Statistical Programming with R -> Introductory Statistics
     ("CASE10", "Julia Chen",     "ESC 1500"),     # Intro Complex Environmental Systems -> Intro Environmental Science I
+    # Cases 11-30: extended seed for end-to-end coverage of non-CS subjects
+    ("Case 11", "Kim Park",        "CPSC 2150"),  # CS Data Structures -> Data Structures
+    ("Case 12", "Liam Bennett",    "CHEM 3010"),  # Organic Chemistry -> Organic Chemistry I
+    ("Case 13", "Maya Singh",      "MATH 1950"),  # Multivariable Calculus -> Calculus I (closest UTC)
+    ("Case 14", "Noah Williams",   "PSY 1010"),   # Intro Psychology -> Intro Psychology
+    ("Case 15", "Olivia Reyes",    "COMM 1010"),  # Film Studies -> Intro to Mass Communication
+    ("Case 16", "Pavel Ivanov",    "COMM 2310"),  # News Writing -> Multimedia Journalism
+    ("Case 17", "Quinn Foster",    "MGT 3300"),   # Project Management -> Organizational Behavior
+    ("Case 18", "Rachel Adams",    "PHYS 1030"),  # General Physics -> General Physics Mechanics
+    ("Case 19", "Samuel Diaz",     "CPSC 2310"),  # Digital Design -> Digital Logic & Computer Org
+    ("Case 20", "Tara Nguyen",     "ECON 1010"),  # Intro Economics -> Principles of Macroeconomics
+    ("Case 21", "Umar Khan",       "THSP 1240"),  # Ballroom Dance -> Dance Technique I
+    ("Case 22", "Vera Stewart",    "MATH 2100"),  # Elementary Statistics -> Introductory Statistics
+    ("Case 23", "Wei Chen",        "NURS 2110"),  # Intro Nursing -> Nursing Agency I
+    ("Case 24", "Xander Brooks",   "ENME 1030"),  # Engineering Fundamentals -> Basic Engineering Science
+    ("Case 25", "Yara Cohen",      "PHIL 1110"),  # Critical Reasoning -> Applied Critical Thinking
+    ("Case 26", "Zoe Martinez",    "BIOL 1110"),  # Biotech Fundamentals -> Principles of Biology I
+    ("Case 27", "Aaron Lopez",     "MATH 2100"),  # Intro Statistics -> Introductory Statistics
+    ("Case 28", "Bella Khalil",    "PHYS 1030"),  # Aeronautics -> General Physics (closest UTC)
+    ("Case 29", "Caleb Wright",    "CPSC 1100"),  # Computer Systems -> Fundamentals of CS
+    ("Case 30", "Diana Ross",      "CHEM 3710"),  # ChemE Thermodynamics -> Physical Chemistry Thermo
 ]
 
 BASE_FOLDER = Path("Data/Raw/StudentTestCases")

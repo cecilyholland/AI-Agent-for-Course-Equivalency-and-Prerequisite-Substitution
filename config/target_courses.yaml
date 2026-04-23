@@ -236,3 +236,212 @@ targets:
       - Explain interactions between natural and human systems
       - Analyze environmental data and interpret trends
       - Evaluate environmental policies and sustainability practices
+
+  # --- Additional UTC targets for student test cases 11-30 ---
+
+  CHEM-3010:
+    display_name: "Organic Chemistry I"
+    target_credits: 3
+    target_lab_required: true
+    required_topics:
+      - structure and bonding
+      - alkanes and cycloalkanes
+      - stereochemistry
+      - alkenes and alkynes
+      - reaction mechanisms
+      - functional groups
+    required_outcomes:
+      - Predict products and mechanisms of common organic reactions
+      - Apply stereochemistry concepts to molecular structure
+      - Identify functional groups and their reactivity
+
+  MATH-1950:
+    display_name: "Calculus with Analytic Geometry I"
+    target_credits: 4
+    target_lab_required: false
+    required_topics:
+      - limits and continuity
+      - derivatives
+      - applications of derivatives
+      - integrals
+      - fundamental theorem of calculus
+      - transcendental functions
+    required_outcomes:
+      - Compute limits, derivatives, and integrals of single-variable functions
+      - Apply differentiation to optimization and rate problems
+      - Use integration to compute areas and accumulated change
+
+  PSY-1010:
+    display_name: "Introduction to Psychology"
+    target_credits: 3
+    target_lab_required: false
+    required_topics:
+      - history and methods of psychology
+      - biological bases of behavior
+      - learning and memory
+      - cognition
+      - personality
+      - social psychology
+      - psychological disorders
+    required_outcomes:
+      - Describe major psychological perspectives and their methods
+      - Explain biological, cognitive, and social influences on behavior
+      - Apply psychological concepts to everyday situations
+
+  COMM-1010:
+    display_name: "Introduction to Mass Communication"
+    target_credits: 3
+    target_lab_required: false
+    required_topics:
+      - history of mass media
+      - print and broadcast media
+      - digital media
+      - media ethics
+      - media effects
+      - media literacy
+    required_outcomes:
+      - Analyze the evolution and role of mass media in society
+      - Evaluate media content using ethical and critical frameworks
+      - Communicate effectively using multimedia formats
+
+  MGT-3300:
+    display_name: "Concepts in Organizational Behavior"
+    target_credits: 3
+    target_lab_required: false
+    required_topics:
+      - individual behavior in organizations
+      - motivation and performance
+      - team dynamics
+      - leadership
+      - organizational structure
+      - organizational change
+    required_outcomes:
+      - Apply behavioral theories to workplace situations
+      - Analyze team and leadership dynamics
+      - Evaluate strategies for managing organizational change
+
+  PHYS-1030:
+    display_name: "General Physics — Mechanics and Heat"
+    target_credits: 4
+    target_lab_required: true
+    required_topics:
+      - kinematics
+      - newton's laws
+      - work and energy
+      - momentum
+      - rotational motion
+      - thermodynamics
+    required_outcomes:
+      - Solve mechanics problems using Newton's laws and energy methods
+      - Apply conservation principles to physical systems
+      - Analyze thermodynamic processes quantitatively
+
+  ECON-1010:
+    display_name: "Principles of Economics: Macroeconomics"
+    target_credits: 3
+    target_lab_required: false
+    required_topics:
+      - supply and demand
+      - GDP and national income
+      - inflation and unemployment
+      - monetary policy
+      - fiscal policy
+      - international trade
+    required_outcomes:
+      - Explain how supply and demand determine market outcomes
+      - Analyze macroeconomic indicators and policy responses
+      - Apply economic reasoning to current events
+
+  THSP-1240:
+    display_name: "Dance Technique I"
+    target_credits: 2
+    target_lab_required: false
+    required_topics:
+      - dance fundamentals
+      - movement vocabulary
+      - rhythm and timing
+      - choreographic forms
+      - performance technique
+    required_outcomes:
+      - Demonstrate fundamental dance movements with proper technique
+      - Perform choreographed sequences with rhythm and expression
+      - Apply principles of movement to creative dance work
+
+  NURS-2110:
+    display_name: "Nursing Agency I: Introduction to Conceptual Thinking"
+    target_credits: 3
+    target_lab_required: false
+    required_topics:
+      - nursing process
+      - patient assessment
+      - communication in nursing
+      - professional roles
+      - ethics in nursing
+      - basic patient care
+    required_outcomes:
+      - Apply the nursing process to patient care scenarios
+      - Demonstrate effective communication in clinical settings
+      - Identify ethical and professional standards of nursing practice
+
+  ENME-1030:
+    display_name: "Basic Engineering Science"
+    target_credits: 3
+    target_lab_required: true
+    required_topics:
+      - engineering problem solving
+      - units and measurements
+      - statics fundamentals
+      - basic mechanics
+      - engineering design process
+      - technical communication
+    required_outcomes:
+      - Apply systematic problem-solving methods to engineering problems
+      - Communicate engineering concepts in written and graphical form
+      - Use the engineering design process to develop solutions
+
+  PHIL-1110:
+    display_name: "Applied Critical Thinking"
+    target_credits: 3
+    target_lab_required: false
+    required_topics:
+      - argument structure
+      - logical fallacies
+      - inductive and deductive reasoning
+      - evidence evaluation
+      - rhetorical analysis
+    required_outcomes:
+      - Identify and analyze argument structures
+      - Evaluate evidence and reasoning in real-world contexts
+      - Construct sound arguments and recognize logical fallacies
+
+  BIOL-1110:
+    display_name: "Principles of Biology I"
+    target_credits: 4
+    target_lab_required: true
+    required_topics:
+      - cell structure and function
+      - biochemistry of life
+      - cellular respiration
+      - photosynthesis
+      - cell division
+      - molecular genetics
+    required_outcomes:
+      - Explain cellular processes and their molecular basis
+      - Apply principles of inheritance and molecular genetics
+      - Use the scientific method to investigate biological questions
+
+  CPSC-1100:
+    display_name: "Fundamentals of Computer Science"
+    target_credits: 3
+    target_lab_required: false
+    required_topics:
+      - history of computing
+      - computer hardware
+      - operating systems overview
+      - programming concepts
+      - software applications
+      - computing in society
+    required_outcomes:
+      - Describe the major components of computer systems
+      - Explain fundamental programming and software concepts
+      - Discuss the social and ethical implications of computing
