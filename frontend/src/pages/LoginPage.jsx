@@ -27,14 +27,15 @@ export default function LoginPage() {
       setLoading(true);
       try {
         const data = await loginReviewer(trimmed, password);
-        // Enforce tab selection matches actual role
+        // Admins can choose which dashboard via tab; non-admins are blocked from admin tab
         if (role === "admin" && data.role !== "admin") {
           setError("This account does not have admin access.");
           return;
         }
-        loginAsReviewer(data.utcId, data.reviewerId, data.role);
-        if (data.role === "admin") navigate("/admin");
-        else if (data.role === "committee") navigate("/reviewer/committee");
+        // Admin users route based on selected tab (admin or reviewer)
+        const effectiveRole = data.role === "admin" ? role : "reviewer";
+        loginAsReviewer(data.utcId, data.reviewerId, effectiveRole);
+        if (effectiveRole === "admin") navigate("/admin");
         else navigate("/reviewer");
       } catch (err) {
         setError(err.message === "Invalid credentials" ? "Invalid ID or password." : "Could not connect. Is the backend running?");
