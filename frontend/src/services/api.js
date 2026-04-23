@@ -254,10 +254,19 @@ export async function fetchCommitteeInfo(caseId, reviewerId) {
 }
 
 export async function submitCommitteeVote(caseId, reviewerId, action, comment) {
+  // Map frontend action names to backend expected values
+  const actionMap = {
+    APPROVE: "approve",
+    DENY: "deny",
+    REQUEST_INFO: "needs_more_info",
+    NEEDS_MORE_INFO: "needs_more_info",
+    APPROVE_WITH_BRIDGE: "approve_with_bridge",
+  };
+  const mappedAction = actionMap[action] || action.toLowerCase();
   const res = await fetch(`${API_BASE}/cases/${caseId}/committee/vote`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ reviewerId, action, comment: comment || "" }),
+    body: JSON.stringify({ reviewerId, action: mappedAction, comment: comment || "" }),
   });
   if (!res.ok) throw new Error("Failed to submit committee vote");
   const data = await res.json();
