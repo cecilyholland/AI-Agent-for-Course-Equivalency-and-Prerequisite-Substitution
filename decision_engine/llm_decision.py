@@ -129,6 +129,11 @@ def build_decision_prompt(
 
 ## Instructions
 Based on the evidence above and the target course requirements, produce your equivalency decision.
+
+IMPORTANT: The extraction pipeline may not have produced explicit topic or outcome lists. You MUST infer topic and outcome coverage from the course title, description, and any catalog match data provided in the evidence. For example, a course titled "Anatomy and Physiology" clearly covers topics like "skeletal system", "muscular system", "nervous system", "cell biology", etc. Count inferred matches when scoring topic and outcome coverage. Do NOT report "No required topics matched" if the course title and description clearly relate to the target course's subject area.
+
+SCORING REMINDER: Follow the scoring rubric strictly. Unknown/missing credits = 0 points for credit parity (out of 20). Unknown/missing lab info = 0 points for lab parity (out of 10). Do NOT award full marks for components where the evidence is unknown or missing. A perfect score of 100 is only possible when ALL four components (topics, outcomes, credits, lab) are confirmed with evidence.
+
 Remember: cite chunk_ids for every reason and gap. Return ONLY the JSON object.
 """
     return user_msg
@@ -174,14 +179,24 @@ def call_llm_decision(
     raw = response.choices[0].message.content
     data = json.loads(raw)
 
-    return _parse_llm_response(data)
+    # Compute score cap based on unknown evidence fields
+    # Credits unknown = lose 20 pts (credit parity can't be confirmed)
+    score_cap = 100
+    for ev in evidence_rows:
+        if ev.fact_key == "credits_or_units" and ev.unknown:
+            score_cap -= 20
+
+    return _parse_llm_response(data, score_cap=score_cap)
 
 
-def _parse_llm_response(data: dict) -> DecisionResult:
+def _parse_llm_response(data: dict, score_cap: int = 100) -> DecisionResult:
     """Parse the JSON response from GPT into a DecisionResult."""
     decision = Decision(data["decision"])
     confidence = Confidence(data.get("confidence", "MEDIUM"))
     score = int(data.get("equivalency_score", 0))
+
+    # Cap score based on unknown evidence fields
+    score = min(score, score_cap)
 
     # Parse reasons
     reasons = []
@@ -213,9 +228,20 @@ def _parse_llm_response(data: dict) -> DecisionResult:
 
     missing_info = data.get("missing_info_requests", [])
 
+    # Override the LLM's decision with score-based bands to ensure consistency
+    score = max(0, min(100, score))
+    if score >= 90:
+        decision = Decision.APPROVE
+    elif score >= 80:
+        decision = Decision.APPROVE_WITH_BRIDGE
+    elif score >= 70:
+        decision = Decision.NEEDS_MORE_INFO
+    else:
+        decision = Decision.DENY
+
     return DecisionResult(
         decision=decision,
-        equivalency_score=max(0, min(100, score)),
+        equivalency_score=score,
         confidence=confidence,
         reasons=reasons,
         gaps=gaps,

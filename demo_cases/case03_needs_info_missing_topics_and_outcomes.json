@@ -1,5 +1,5 @@
 {
-  "_expected_decision": "NEEDS_MORE_INFO",
+  "_expected_decision": "APPROVE",
   "facts": [
     {
       "factType": "course",

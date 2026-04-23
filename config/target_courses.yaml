@@ -91,3 +91,148 @@ targets:
       - Design normalized relational schemas
       - Write SQL for complex queries
       - Reason about transaction isolation and integrity
+
+  # --- Non-CS target courses (used by demo seed cases) ---
+
+  NURS-2260:
+    display_name: "Pathophysiology"
+    target_credits: 3
+    target_lab_required: false
+    required_topics:
+      - cellular injury and adaptation
+      - inflammation and tissue repair
+      - immune response
+      - cardiovascular pathology
+      - respiratory pathology
+      - renal pathology
+    required_outcomes:
+      - Explain mechanisms of disease at the cellular and organ level
+      - Correlate pathological changes with clinical manifestations
+      - Apply pathophysiology concepts to nursing assessment
+
+  BIOL-2010:
+    display_name: "Anatomy & Physiology I"
+    target_credits: 4
+    target_lab_required: false
+    required_topics:
+      - cell biology
+      - histology
+      - skeletal system
+      - muscular system
+      - nervous system
+      - integumentary system
+    required_outcomes:
+      - Identify major anatomical structures
+      - Explain physiological processes at tissue and organ levels
+      - Apply anatomical knowledge through practical examination
+
+  CHEM-4510:
+    display_name: "Biochemistry"
+    target_credits: 3
+    target_lab_required: false
+    required_topics:
+      - protein structure and function
+      - enzyme kinetics
+      - metabolism
+      - nucleic acids
+      - lipid biochemistry
+      - signal transduction
+    required_outcomes:
+      - Describe macromolecular structure-function relationships
+      - Analyze metabolic pathways and their regulation
+      - Apply biochemical principles to biological problems
+
+  BIOL-3060:
+    display_name: "Ecology"
+    target_credits: 3
+    target_lab_required: false
+    required_topics:
+      - population ecology
+      - community ecology
+      - ecosystem ecology
+      - species interactions
+      - biodiversity
+      - conservation biology
+    required_outcomes:
+      - Analyze population dynamics and growth models
+      - Explain species interactions and community structure
+      - Evaluate ecosystem processes and energy flow
+
+  HHP-3450:
+    display_name: "Neuroscience and Neurofeedback in HHP"
+    target_credits: 3
+    target_lab_required: false
+    required_topics:
+      - neural anatomy
+      - synaptic transmission
+      - sensory systems
+      - motor systems
+      - neuroplasticity
+      - neurofeedback techniques
+    required_outcomes:
+      - Describe the structure and function of the nervous system
+      - Explain mechanisms of neural communication
+      - Apply neuroscience concepts to health and human performance
+
+  CHEM-3710:
+    display_name: "Physical Chemistry: Thermodynamics and Kinetics"
+    target_credits: 3
+    target_lab_required: false
+    required_topics:
+      - thermodynamic laws
+      - enthalpy and entropy
+      - free energy
+      - chemical equilibrium
+      - reaction kinetics
+      - phase diagrams
+    required_outcomes:
+      - Apply thermodynamic principles to chemical systems
+      - Analyze reaction rates and mechanisms
+      - Predict equilibrium behavior using thermodynamic data
+
+  COMM-2310:
+    display_name: "Multimedia Journalism"
+    target_credits: 3
+    target_lab_required: false
+    required_topics:
+      - news writing
+      - multimedia storytelling
+      - interviewing techniques
+      - media ethics
+      - digital content production
+    required_outcomes:
+      - Write clear and accurate news stories
+      - Produce multimedia content for digital platforms
+      - Apply ethical standards to journalism practice
+
+  MATH-2100:
+    display_name: "Introductory Statistics"
+    target_credits: 3
+    target_lab_required: false
+    required_topics:
+      - descriptive statistics
+      - probability
+      - sampling distributions
+      - hypothesis testing
+      - regression
+      - confidence intervals
+    required_outcomes:
+      - Summarize and visualize data using statistical methods
+      - Perform hypothesis tests and interpret results
+      - Apply regression analysis to real-world data
+
+  ESC-1500:
+    display_name: "Introduction to Environmental Science I"
+    target_credits: 4
+    target_lab_required: false
+    required_topics:
+      - ecosystems and biomes
+      - water resources
+      - atmospheric science
+      - environmental pollution
+      - sustainability
+      - human-environment interaction
+    required_outcomes:
+      - Explain interactions between natural and human systems
+      - Analyze environmental data and interpret trends
+      - Evaluate environmental policies and sustainability practices

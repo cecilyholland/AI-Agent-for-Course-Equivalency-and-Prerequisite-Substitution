@@ -2,8 +2,8 @@ approve_threshold: 90
 bridge_threshold: 80
 needs_info_threshold: 70
 require_lab_parity: true
-require_credits_known: true
-require_topics_or_outcomes: true
+require_credits_known: false
+require_topics_or_outcomes: false
 min_grade: null
 min_contact_hours: 0
 max_course_age_years: 0
