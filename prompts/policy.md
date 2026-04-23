@@ -77,7 +77,7 @@ score <  70                    -> DENY
 **Credit rules — read carefully, the off-by-1 case is NOT a veto:**
 
 - **Credit mismatch ≥ 2 (HARD veto):** If source credits differ from target by **2 or more** (e.g., target=3, source=1 or source=5), emit a HARD gap and force `DENY` regardless of score.
-- **Credit off-by-1 (FIXABLE — NOT a veto, do NOT DENY):** If source credits differ from target by exactly 1 (e.g., target=3, source=2 or source=4), treat this as a FIXABLE gap. Add a bridge-plan entry for credit reconciliation. The case remains eligible for `APPROVE_WITH_BRIDGE` (or `APPROVE` if score ≥ 90). **Off-by-1 alone never forces DENY.**
+- **Credit off-by-1 (FIXABLE — NOT a veto, do NOT DENY):** If source credits differ from target by exactly 1 (e.g., target=3, source=2 or source=4), treat this as a FIXABLE gap. Add a bridge-plan entry for credit reconciliation. **The decision MUST be `APPROVE_WITH_BRIDGE`** (not APPROVE), because a FIXABLE gap exists. This rule applies even when the score is ≥ 90 — any FIXABLE gap forces the bridge band. **Off-by-1 alone never forces DENY.**
 - **Credit exact match:** No gap, no veto.
 
 **Other veto rules:**

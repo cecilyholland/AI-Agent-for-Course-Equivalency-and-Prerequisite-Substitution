@@ -228,11 +228,16 @@ def _parse_llm_response(data: dict, score_cap: int = 100) -> DecisionResult:
 
     missing_info = data.get("missing_info_requests", [])
 
-    # Override the LLM's decision with score-based bands to ensure consistency
+    # Override the LLM's decision with score-based bands AND gap-based overrides
+    # (matches the deterministic engine in contracts.py decide())
     score = max(0, min(100, score))
-    if score >= 90:
+    has_hard = any(g.severity == "HARD" for g in gaps)
+    has_fixable = any(g.severity == "FIXABLE" for g in gaps)
+    if has_hard:
+        decision = Decision.DENY
+    elif score >= 90 and not has_fixable:
         decision = Decision.APPROVE
-    elif score >= 80:
+    elif score >= 80 or (score >= 90 and has_fixable):
         decision = Decision.APPROVE_WITH_BRIDGE
     elif score >= 70:
         decision = Decision.NEEDS_MORE_INFO
