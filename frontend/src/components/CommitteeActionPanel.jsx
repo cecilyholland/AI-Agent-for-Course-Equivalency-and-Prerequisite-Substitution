@@ -4,6 +4,7 @@ import "./CommitteeActionPanel.css";
 
 const CONFIRMATION_MESSAGES = {
   APPROVE: "Your vote to approve has been submitted.",
+  APPROVE_WITH_BRIDGE: "Your vote to approve with bridge has been submitted.",
   DENY: "Your vote to deny has been submitted.",
   REQUEST_INFO: "Your vote to request more information has been submitted.",
 };
@@ -35,8 +36,12 @@ export default function CommitteeActionPanel({ alreadyVoted, myVote, onVote }) {
 
   const handleConfirm = () => {
     if (!selectedAction) return;
-    if (selectedAction === "REQUEST_INFO" && comment.trim() === "") {
-      setCommentError("Comment is required when requesting more info.");
+    if ((selectedAction === "REQUEST_INFO" || selectedAction === "APPROVE_WITH_BRIDGE") && comment.trim() === "") {
+      setCommentError(
+        selectedAction === "APPROVE_WITH_BRIDGE"
+          ? "Comment is required — describe the bridge requirements."
+          : "Comment is required when requesting more info."
+      );
       return;
     }
     onVote(selectedAction, comment);
@@ -56,6 +61,13 @@ export default function CommitteeActionPanel({ alreadyVoted, myVote, onVote }) {
           Approve
         </button>
         <button
+          className={`action-btn action-btn--bridge${selectedAction === "APPROVE_WITH_BRIDGE" ? " action-btn--selected" : ""}`}
+          disabled={confirmed}
+          onClick={() => handleActionClick("APPROVE_WITH_BRIDGE")}
+        >
+          Approve with Bridge
+        </button>
+        <button
           className={`action-btn action-btn--deny${selectedAction === "DENY" ? " action-btn--selected" : ""}`}
           disabled={confirmed}
           onClick={() => handleActionClick("DENY")}
@@ -73,7 +85,7 @@ export default function CommitteeActionPanel({ alreadyVoted, myVote, onVote }) {
 
       <div className="comment-section">
         <label>
-          {selectedAction === "REQUEST_INFO"
+          {(selectedAction === "REQUEST_INFO" || selectedAction === "APPROVE_WITH_BRIDGE")
             ? "Comment (required)"
             : "Comment (optional)"}
         </label>
@@ -82,6 +94,8 @@ export default function CommitteeActionPanel({ alreadyVoted, myVote, onVote }) {
           placeholder={
             selectedAction === "REQUEST_INFO"
               ? "Describe what additional information is needed..."
+              : selectedAction === "APPROVE_WITH_BRIDGE"
+              ? "Describe the bridge requirements the student must fulfill..."
               : "Add a comment about your vote..."
           }
           value={comment}

@@ -91,10 +91,17 @@ export default function CommitteeCaseReview() {
         <div className="case-student-name">{caseData.studentName}</div>
       </div>
 
-      {caseData.reviewerDecisionComment && (
+      {(caseData.reviewerDecision || caseData.reviewerDecisionComment) && (
         <div className="existing-comment">
-          <div className="existing-comment-label">Original Reviewer Comment</div>
-          <p>{caseData.reviewerDecisionComment}</p>
+          <div className="existing-comment-label">Reviewer Decision</div>
+          {caseData.reviewerDecision && (
+            <span className="reviewer-decision-badge">
+              {caseData.reviewerDecision.replace(/_/g, " ").toUpperCase()}
+            </span>
+          )}
+          {caseData.reviewerDecisionComment && (
+            <p style={{ marginTop: "8px" }}>{caseData.reviewerDecisionComment}</p>
+          )}
         </div>
       )}
 
