@@ -1710,7 +1710,6 @@ def fetch_chunks_by_evidence(db: Session, evidence_rows) -> dict:
 
 def validate_packet_or_raise(packet: DecisionInputsPacket) -> list[str]:
     missing: list[str] = []
-
     src = packet.source_course
     policy = packet.policy
 

@@ -132,12 +132,25 @@ export async function submitAdditionalInfo(caseId, files) {
   return mapCaseOut(data);
 }
 
+// --- auth ---
+
+export async function loginReviewer(utcId, password) {
+  const res = await fetch(`${API_BASE}/auth/login`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ utcId, password }),
+  });
+  if (res.status === 401) throw new Error("Invalid credentials");
+  if (!res.ok) throw new Error("Login failed");
+  return res.json(); // { reviewerId, reviewerName, utcId, role }
+}
+
 // --- reviewer lookup ---
 
 export async function fetchReviewers() {
   const res = await fetch(`${API_BASE}/reviewers`);
   if (!res.ok) throw new Error("Failed to fetch reviewers");
-  return res.json(); // [{ reviewerId, reviewerName, utcId, createdAt }]
+  return res.json();
 }
 
 // --- reviewer actions ---
@@ -180,4 +193,73 @@ export async function fetchDecisionResult(caseId) {
   if (!res.ok) throw new Error("Failed to fetch decision result");
   const data = await res.json();
   return mapDecisionResult(data);
+}
+
+// --- admin: courses ---
+
+export async function fetchCourses(department) {
+  const url = department ? `${API_BASE}/courses?department=${encodeURIComponent(department)}` : `${API_BASE}/courses`;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error("Failed to fetch courses");
+  return res.json();
+}
+
+export async function addCourse({ courseCode, displayName, department, credits, labRequired, prerequisites, requiredTopics, requiredOutcomes, description }) {
+  const res = await fetch(`${API_BASE}/courses`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ courseCode, displayName, department, credits, labRequired, prerequisites, requiredTopics, requiredOutcomes, description }),
+  });
+  if (!res.ok) throw new Error("Failed to add course");
+  return res.json();
+}
+
+export async function deleteCourse(courseId) {
+  const res = await fetch(`${API_BASE}/courses/${courseId}`, { method: "DELETE" });
+  if (!res.ok) throw new Error("Failed to delete course");
+}
+
+// --- admin: policy ---
+// All fields are camelCase matching PolicyOut / PolicyUpdateIn
+
+export async function fetchPolicy() {
+  const res = await fetch(`${API_BASE}/policy`);
+  if (!res.ok) throw new Error("Failed to fetch policy");
+  return res.json();
+}
+
+export async function updatePolicy(policy) {
+  const res = await fetch(`${API_BASE}/policy`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(policy),
+  });
+  if (!res.ok) throw new Error("Failed to update policy");
+  return res.json();
+}
+
+// --- committee ---
+
+export async function fetchCommitteeCases(reviewerId) {
+  const res = await fetch(`${API_BASE}/cases?committeeReviewerId=${reviewerId}`);
+  if (!res.ok) throw new Error("Failed to fetch committee cases");
+  const data = await res.json();
+  return data.map(mapCaseOut);
+}
+
+export async function fetchCommitteeInfo(caseId, reviewerId) {
+  const res = await fetch(`${API_BASE}/cases/${caseId}/committee?reviewerId=${reviewerId}`);
+  if (!res.ok) throw new Error("Failed to fetch committee info");
+  return res.json();
+}
+
+export async function submitCommitteeVote(caseId, reviewerId, action, comment) {
+  const res = await fetch(`${API_BASE}/cases/${caseId}/committee/vote`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ reviewerId, action, comment: comment || "" }),
+  });
+  if (!res.ok) throw new Error("Failed to submit committee vote");
+  const data = await res.json();
+  return mapCaseOut(data);
 }

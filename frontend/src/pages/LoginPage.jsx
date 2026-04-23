@@ -1,13 +1,14 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../services/auth";
-import { fetchReviewers } from "../services/api";
+import { loginReviewer } from "../services/api";
 import "./LoginPage.css";
 
 export default function LoginPage() {
   const navigate = useNavigate();
   const { loginAsStudent, loginAsReviewer } = useAuth();
   const [utcId, setUtcId] = useState("");
+  const [password, setPassword] = useState("");
   const [role, setRole] = useState("student");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -25,25 +26,21 @@ export default function LoginPage() {
     } else {
       setLoading(true);
       try {
-        const reviewers = await fetchReviewers();
-        const match = reviewers.find((r) => r.utcId === trimmed);
-        if (!match) {
-          setError("Reviewer ID not found. Contact your administrator.");
+        const data = await loginReviewer(trimmed, password);
+        // Enforce tab selection matches actual role
+        if (role === "admin" && data.role !== "admin") {
+          setError("This account does not have admin access.");
           return;
         }
-        loginAsReviewer(trimmed, match.reviewerId);
-        navigate("/reviewer");
-      } catch {
-        setError("Could not verify reviewer. Is the backend running?");
+        loginAsReviewer(data.utcId, data.reviewerId, data.role);
+        if (data.role === "admin") navigate("/admin");
+        else if (data.role === "committee") navigate("/reviewer/committee");
+        else navigate("/reviewer");
+      } catch (err) {
+        setError(err.message === "Invalid credentials" ? "Invalid ID or password." : "Could not connect. Is the backend running?");
       } finally {
         setLoading(false);
       }
-    }
-  };
-
-  const handleKeyDown = (e) => {
-    if (e.key === "Enter") {
-      handleLogin(e);
     }
   };
 
@@ -62,15 +59,21 @@ export default function LoginPage() {
         <div className="login-role-toggle">
           <button
             className={`login-role-tab ${role === "student" ? "login-role-tab--active" : ""}`}
-            onClick={() => setRole("student")}
+            onClick={() => { setRole("student"); setError(""); setPassword(""); }}
           >
             Student
           </button>
           <button
             className={`login-role-tab ${role === "reviewer" ? "login-role-tab--active" : ""}`}
-            onClick={() => setRole("reviewer")}
+            onClick={() => { setRole("reviewer"); setError(""); setPassword(""); }}
           >
             Reviewer
+          </button>
+          <button
+            className={`login-role-tab ${role === "admin" ? "login-role-tab--active" : ""}`}
+            onClick={() => { setRole("admin"); setError(""); setPassword(""); }}
+          >
+            Admin
           </button>
         </div>
 
@@ -84,12 +87,25 @@ export default function LoginPage() {
             type="text"
             placeholder="Enter your UTC ID"
             value={utcId}
-            onChange={(e) => {
-              setUtcId(e.target.value);
-              if (error) setError("");
-            }}
-            onKeyDown={handleKeyDown}
+            onChange={(e) => { setUtcId(e.target.value); if (error) setError(""); }}
           />
+
+          {(role === "reviewer" || role === "admin") && (
+            <>
+              <label className="login-label" htmlFor="password" style={{ marginTop: "14px" }}>
+                Password: *
+              </label>
+              <input
+                id="password"
+                className="login-input"
+                type="password"
+                placeholder="Enter your password"
+                value={password}
+                onChange={(e) => { setPassword(e.target.value); if (error) setError(""); }}
+              />
+            </>
+          )}
+
           {error && <p className="login-error">{error}</p>}
           <p className="login-format-hint">* Indicates required fields</p>
 
