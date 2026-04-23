@@ -55,6 +55,8 @@ The equivalency score is composed of four weighted components:
 
 If the target course has no required topics/outcomes listed, award the full weight for that component.
 
+**IMPORTANT — When source topics/outcomes are not explicitly extracted**, you MUST infer them from the course description, title, catalog match data, and any available syllabus text. A course titled "Anatomy and Physiology" clearly covers topics like skeletal system, muscular system, nervous system, etc. — count these as matched even if the extraction didn't produce an explicit topic list. Score based on your best assessment of how well the source content covers the target requirements. Never assign a score of 0 unless the source course is completely unrelated to the target course. When inferring, explain what you inferred and why in the reasons.
+
 ---
 
 ## Decision bands (applied after scoring)
@@ -74,8 +76,8 @@ score <  70                    -> DENY
 
 - **Credit mismatch > 1 (HARD):** If source credits differ from target credits by more than 1, emit a HARD gap and force `DENY` regardless of score. (Off-by-1 is FIXABLE and enters the bridge plan.)
 - **Lab required but missing (FIXABLE):** If target requires a lab and source has no lab, emit a FIXABLE gap and a bridge-plan lab entry (can still be APPROVE_WITH_BRIDGE).
-- **No required topics matched (HARD):** If the target has required topics and the source matches *none* of them, force `DENY`.
-- **No required outcomes matched (HARD):** Same rule for learning outcomes.
+- **No required topics matched (HARD):** If the target has required topics and the source matches *none* of them (including inferred matches from description/title), force `DENY`. A topic counts as matched if the course description, title, or catalog data clearly indicates coverage of that topic area.
+- **No required outcomes matched (HARD):** Same rule for learning outcomes. Inferred matches from description/title count.
 
 ### Configurable policy rules (see `config/policy.yaml`)
 
@@ -88,7 +90,9 @@ These are optional — they only apply when enabled in the policy file. When ena
 
 ### Unknowns policy
 
-- If any **required** evidence field is unknown (INFO_MISSING gap), the decision is `NEEDS_MORE_INFO` regardless of score. The student/advisor must provide the missing evidence before a real decision can be made.
+- If evidence fields are unknown or missing (e.g., topics, outcomes not extracted), **do NOT automatically force NEEDS_MORE_INFO**. Instead, score based on all available evidence — course description, title, credits, lab component, and any other extracted information. Infer topic and outcome coverage from the course description and title when explicit lists are not available.
+- Only use `NEEDS_MORE_INFO` when the score falls in the 70-79 band per the decision bands above.
+- A score below 70 is always `DENY`, even if some evidence is missing.
 - Unknown optional fields (e.g., transcript-sourced `grade` when `min_grade` is disabled) are ignored.
 
 ---

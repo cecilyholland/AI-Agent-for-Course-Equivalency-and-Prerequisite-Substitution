@@ -125,6 +125,17 @@ class CourseOut(BaseModel):
     updatedAt: datetime
 
 
+class CourseUpdateIn(BaseModel):
+    displayName: Optional[str] = None
+    department: Optional[str] = None
+    credits: Optional[int] = None
+    labRequired: Optional[bool] = None
+    prerequisites: Optional[str] = None
+    requiredTopics: Optional[List[str]] = None
+    requiredOutcomes: Optional[List[str]] = None
+    description: Optional[str] = None
+
+
 class LoginIn(BaseModel):
     utcId: str
     password: str

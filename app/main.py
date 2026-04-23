@@ -54,6 +54,7 @@ from app.schemas import (
     CommitteeInfoOut,
     CourseIn,
     CourseOut,
+    CourseUpdateIn,
     LoginIn,
     LoginOut,
     PolicyOut,
@@ -1340,22 +1341,6 @@ def decision_run(caseId: str, db: Session = Depends(get_db)):
     case.status = "ready_for_decision"
     case.updated_at = now_utc()
 
-    # Only block if there's already a completed decision with an actual result
-    existing_run = (
-        db.query(DecisionRun)
-        .filter(
-            DecisionRun.request_id == case_uuid,
-            DecisionRun.status == "completed",
-        )
-        .first()
-    )
-    if existing_run:
-        has_result = db.query(DecisionResult).filter(
-            DecisionResult.decision_run_id == existing_run.decision_run_id
-        ).first()
-        if has_result:
-            raise HTTPException(status_code=409, detail="Decision already completed for this case")
-
     docs = (
         db.query(Document)
         .filter(Document.request_id == case_uuid, Document.is_active == True)
@@ -1614,11 +1599,17 @@ def load_policy_config() -> PolicyConfig:
 
 
 def _normalize_course_code(code: Optional[str]) -> str:
-    """Normalize 'cpsc 2150', 'CPSC-2150', 'cpsc2150' -> 'CPSC-2150'."""
+    """Normalize 'NURS 2260 - Pathophysiology', 'cpsc 2150', 'CPSC-2150' -> 'CPSC-2150'.
+    Strips display name after the code (e.g. '- Pathophysiology')."""
     if not code:
         return ""
     import re
     s = code.strip().upper()
+    # Extract just the course code (letters + numbers), drop display name
+    m = re.match(r"([A-Z]+)[\s\-_]*(\d+[A-Z]?)", s)
+    if m:
+        return f"{m.group(1)}-{m.group(2)}"
+    # Fallback: original logic
     s = re.sub(r"[\s_]+", "-", s)
     s = re.sub(r"([A-Z])(\d)", r"\1-\2", s)
     s = re.sub(r"-+", "-", s)
@@ -2047,6 +2038,69 @@ def get_course(courseId: str, db: Session = Depends(get_db)):
         createdAt=c.created_at,
         updatedAt=c.updated_at,
     )
+
+
+@app.put("/api/courses/{courseId}", response_model=CourseOut)
+def update_course(courseId: str, body: CourseUpdateIn, db: Session = Depends(get_db)):
+    try:
+        cid = uuid.UUID(courseId)
+    except ValueError:
+        raise HTTPException(status_code=422, detail="Invalid courseId (must be a UUID)")
+
+    c = db.query(Course).filter(Course.course_id == cid).first()
+    if not c:
+        raise HTTPException(status_code=404, detail="Course not found")
+
+    if body.displayName is not None:
+        c.display_name = body.displayName
+    if body.department is not None:
+        c.department = body.department
+    if body.credits is not None:
+        c.credits = body.credits
+    if body.labRequired is not None:
+        c.lab_required = body.labRequired
+    if body.prerequisites is not None:
+        c.prerequisites = body.prerequisites
+    if body.requiredTopics is not None:
+        c.required_topics = body.requiredTopics
+    if body.requiredOutcomes is not None:
+        c.required_outcomes = body.requiredOutcomes
+    if body.description is not None:
+        c.description = body.description
+
+    c.updated_at = now_utc()
+    db.commit()
+    db.refresh(c)
+
+    return CourseOut(
+        courseId=str(c.course_id),
+        courseCode=c.course_code,
+        displayName=c.display_name,
+        department=c.department,
+        credits=c.credits,
+        labRequired=c.lab_required,
+        prerequisites=c.prerequisites,
+        requiredTopics=c.required_topics or [],
+        requiredOutcomes=c.required_outcomes or [],
+        description=c.description,
+        createdAt=c.created_at,
+        updatedAt=c.updated_at,
+    )
+
+
+@app.delete("/api/courses/{courseId}", status_code=204)
+def delete_course(courseId: str, db: Session = Depends(get_db)):
+    try:
+        cid = uuid.UUID(courseId)
+    except ValueError:
+        raise HTTPException(status_code=422, detail="Invalid courseId (must be a UUID)")
+
+    c = db.query(Course).filter(Course.course_id == cid).first()
+    if not c:
+        raise HTTPException(status_code=404, detail="Course not found")
+
+    db.delete(c)
+    db.commit()
 
 
 @app.post("/api/courses/seed-from-csv", status_code=201)
