@@ -21,16 +21,16 @@ from app.extraction.pipeline import run_extraction as run_extraction_pipeline
 from app.main import run_decision_for_case_and_run
 
 CASES = [
-    ("CASE01", "Alice Johnson",  "COMP 1000"),
-    ("CASE02", "Brian Lee",      "COMP 1200"),
-    ("CASE03", "Carla Gomez",    "COMP 2000"),
-    ("CASE04", "Daniel Kim",     "COMP 2100"),
-    ("CASE05", "Elena Martinez", "COMP 2200"),
-    ("CASE06", "Farah Ahmed",    "COMP 2300"),
-    ("CASE07", "George Patel",   "COMP 2400"),
-    ("CASE08", "Hannah Wright",  "COMP 2500"),
-    ("CASE09", "Ivan Novak",     "COMP 2600"),
-    ("CASE10", "Julia Chen",     "COMP 2700"),
+    ("CASE01", "Alice Johnson",  "NURS 2260"),    # General Pathology -> Pathophysiology
+    ("CASE02", "Brian Lee",      "BIOL 2010"),    # Anatomy & Physiology -> Anatomy & Physiology I
+    ("CASE03", "Carla Gomez",    "CHEM 4510"),    # Biochemistry -> Biochemistry
+    ("CASE04", "Daniel Kim",     "BIOL 3060"),    # Principles of Ecology -> Ecology
+    ("CASE05", "Elena Martinez", "NURS 2260"),    # Clinical Pathology -> Pathophysiology
+    ("CASE06", "Farah Ahmed",    "HHP 3450"),     # Classics in Neuroscience -> Neuroscience and Neurofeedback
+    ("CASE07", "George Patel",   "CHEM 3710"),    # CBE Thermodynamics -> Physical Chemistry: Thermo & Kinetics
+    ("CASE08", "Hannah Wright",  "COMM 2310"),    # Leadership and Communication -> Multimedia Journalism
+    ("CASE09", "Ivan Novak",     "MATH 2100"),    # Statistical Programming with R -> Introductory Statistics
+    ("CASE10", "Julia Chen",     "ESC 1500"),     # Intro Complex Environmental Systems -> Intro Environmental Science I
 ]
 
 BASE_FOLDER = Path("Data/Raw/StudentTestCases")

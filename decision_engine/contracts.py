@@ -649,10 +649,7 @@ def decide(packet: DecisionInputsPacket) -> DecisionResult:
     has_fixable = any(g.severity == "FIXABLE" for g in gaps)
     has_bridge_items = len(bridge_items) > 0
 
-    if has_info_missing:
-        # Missing info always wins — ask for it before deciding
-        decision = Decision.NEEDS_MORE_INFO
-    elif has_hard:
+    if has_hard:
         # Hard-rule violations always veto, regardless of score
         decision = Decision.DENY
     elif score >= policy.approve_threshold:
