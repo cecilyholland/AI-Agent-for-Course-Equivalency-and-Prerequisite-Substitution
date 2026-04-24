@@ -781,7 +781,7 @@ def submit_review(
     )
 
     # After reviewer approves or denies, assign committee and move to pending_committee
-    if action_db in ("approve", "deny"):
+    if action_db in ("approve", "deny", "approve_with_bridge"):
         # Pick 3 random reviewers who are NOT the assigned reviewer
         eligible = (
             db.query(Reviewer)

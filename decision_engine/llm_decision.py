@@ -198,22 +198,21 @@ def _parse_llm_response(data: dict, score_cap: int = 100) -> DecisionResult:
     # Cap score based on unknown evidence fields
     score = min(score, score_cap)
 
+    def _safe_citation(c):
+        if isinstance(c, dict):
+            return Citation(doc_id=c.get("doc_id", ""), chunk_id=c.get("chunk_id"))
+        return Citation(doc_id="", chunk_id=str(c) if c else None)
+
     # Parse reasons
     reasons = []
     for r in data.get("reasons", []):
-        citations = [
-            Citation(doc_id=c.get("doc_id", ""), chunk_id=c.get("chunk_id"))
-            for c in r.get("citations", [])
-        ]
+        citations = [_safe_citation(c) for c in r.get("citations", [])]
         reasons.append(ReasonItem(text=r["text"], citations=citations))
 
     # Parse gaps
     gaps = []
     for g in data.get("gaps", []):
-        citations = [
-            Citation(doc_id=c.get("doc_id", ""), chunk_id=c.get("chunk_id"))
-            for c in g.get("citations", [])
-        ]
+        citations = [_safe_citation(c) for c in g.get("citations", [])]
         gaps.append(GapItem(
             text=g["text"],
             severity=g.get("severity", "HARD"),

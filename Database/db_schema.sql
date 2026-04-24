@@ -238,7 +238,7 @@ CREATE TABLE review_actions (
   created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 
   reviewer_id         TEXT,
-  action             TEXT NOT NULL CHECK (action IN ('approve', 'deny', 'request_info', 'override')),
+  action             TEXT NOT NULL CHECK (action IN ('approve', 'deny', 'request_info', 'override', 'approve_with_bridge')),
   comment            TEXT NOT NULL,
 
   -- optional: what decision_run/result this action relates to
