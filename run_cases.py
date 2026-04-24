@@ -1,9 +1,11 @@
 """
-Run cases 1-10 through the full pipeline (create case, extract, decide)
+Run cases 1-30 through the full pipeline (create case, extract, decide)
 and record results to demo_results/demo_results.json.
 
 Usage:
-    python run_cases.py
+    python run_cases.py            # run all 30 cases
+    python run_cases.py 1 10       # run cases 1-10 only
+    python run_cases.py 11 30      # run cases 11-30 only
 """
 from __future__ import annotations
 
@@ -30,6 +32,7 @@ from app.extraction.pipeline import run_extraction as run_extraction_pipeline
 from app.main import run_decision_for_case_and_run
 
 CASES = [
+    # Cases 1-10 (have structured transcripts)
     ("CASE01", "Alice Johnson",  "NURS 2260"),
     ("CASE02", "Brian Lee",      "BIOL 2010"),
     ("CASE03", "Carla Gomez",    "CHEM 4510"),
@@ -40,6 +43,26 @@ CASES = [
     ("CASE08", "Hannah Wright",  "COMM 2310"),
     ("CASE09", "Ivan Novak",     "MATH 2100"),
     ("CASE10", "Julia Chen",     "ESC 1500"),
+    ("CASE11", "Sofia Reyes",       "CPSC 2150"),   
+    ("CASE12", "Wei Huang",         "CHEM 3010"),   
+    ("CASE13", "Yuki Nakamura",     "MATH 2560"),   
+    ("CASE14", "Kwame Osei-Bonsu",  "PSY 1010"),    
+    ("CASE15", "Chioma Okonkwo",    "ART 1035"),    
+    ("CASE16", "Min-Jun Kim",       "COMM 2310"),  
+    ("CASE17", "Arun Patel",        "MGT 4550"),   
+    ("CASE18", "Luis Garcia",       "PHYS 1030"),  
+    ("CASE19", "Marcus Watkins",    "CPSC 2310"),   
+    ("CASE20", "Lily Chen",         "ECON 1010"),   
+    ("CASE21", "Jordan Morgan",     "DANC 1240"),  
+    ("CASE22", "Priya Patel",       "MATH 2100"),   
+    ("CASE23", "Nia Johnson",       "NURS 2260"),  
+    ("CASE24", "Tyler Brooks",      "ENGR 1020"),   
+    ("CASE25", "Denise Washington", "PHIL 1110"),  
+    ("CASE26", "Raj Singh",         "BIOL 1110"),  
+    ("CASE27", "Maria Rivera",      "MATH 2100"),  
+    ("CASE28", "David Chen",        "CPSC 2310"),   
+    ("CASE29", "Ana Torres",        "CPSC 1110"),   
+    ("CASE30", "Chris Williams",    "ENCH 3030"),   
 ]
 
 BASE_FOLDER = Path("Data/Raw/StudentTestCases")
@@ -185,4 +208,9 @@ def main():
 
 
 if __name__ == "__main__":
+    # Optional range args: python run_cases.py [start] [end]
+    if len(sys.argv) == 3:
+        start = int(sys.argv[1])
+        end = int(sys.argv[2])
+        CASES[:] = [c for c in CASES if start <= int(c[0].replace("CASE", "")) <= end]
     main()
