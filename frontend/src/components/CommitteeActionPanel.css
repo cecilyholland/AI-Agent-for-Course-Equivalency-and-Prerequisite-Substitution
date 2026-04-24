@@ -30,3 +30,7 @@
   color: var(--color-text-secondary);
   line-height: 1.5;
 }
+
+.action-btn--bridge {
+  background-color: var(--color-bridge);
+}

@@ -3,6 +3,7 @@ import "./ReviewerActionPanel.css";
 
 const CONFIRMATION_MESSAGES = {
   APPROVE: "Thanks for sharing, this looks good. Approved.",
+  APPROVE_WITH_BRIDGE: "Approved with bridge requirements. The student has been notified.",
   DENY: "Case denied.",
   REQUEST_INFO: "Request for additional information sent to the student.",
 };
@@ -16,7 +17,7 @@ export default function ReviewerActionPanel({
   const [comment, setComment] = useState("");
   const [confirmed, setConfirmed] = useState(false);
   const [commentError, setCommentError] = useState("");
-  const isDisabled = currentStatus === "REVIEWED" || currentStatus === "APPROVED" || currentStatus === "INVALID" || currentStatus === "DENIED" || confirmed;
+  const isDisabled = currentStatus === "REVIEWED" || currentStatus === "APPROVED" || currentStatus === "APPROVED WITH BRIDGE" || currentStatus === "INVALID" || currentStatus === "DENIED" || confirmed;
 
   const handleActionClick = (action) => {
     if (isDisabled) return;
@@ -26,8 +27,12 @@ export default function ReviewerActionPanel({
 
   const handleConfirm = () => {
     if (!selectedAction) return;
-    if (selectedAction === "REQUEST_INFO" && comment.trim() === "") {
-      setCommentError("Comment is required when requesting more info.");
+    if ((selectedAction === "REQUEST_INFO" || selectedAction === "APPROVE_WITH_BRIDGE") && comment.trim() === "") {
+      setCommentError(
+        selectedAction === "APPROVE_WITH_BRIDGE"
+          ? "Comment is required — describe the bridge requirements."
+          : "Comment is required when requesting more info."
+      );
       return;
     }
     onAction(selectedAction, comment);
@@ -47,6 +52,15 @@ export default function ReviewerActionPanel({
           onClick={() => handleActionClick("APPROVE")}
         >
           Approve
+        </button>
+        <button
+          className={`action-btn action-btn--bridge${
+            selectedAction === "APPROVE_WITH_BRIDGE" ? " action-btn--selected" : ""
+          }`}
+          disabled={isDisabled}
+          onClick={() => handleActionClick("APPROVE_WITH_BRIDGE")}
+        >
+          Approve with Bridge
         </button>
         <button
           className={`action-btn action-btn--deny${
@@ -70,7 +84,7 @@ export default function ReviewerActionPanel({
 
       <div className="comment-section">
         <label htmlFor={`comment-${caseId}`}>
-          {selectedAction === "REQUEST_INFO"
+          {(selectedAction === "REQUEST_INFO" || selectedAction === "APPROVE_WITH_BRIDGE")
             ? "Reviewer Comment (required)"
             : "Reviewer Comment (optional)"}
         </label>
@@ -80,6 +94,8 @@ export default function ReviewerActionPanel({
           placeholder={
             selectedAction === "REQUEST_INFO"
               ? "Describe what additional information is needed..."
+              : selectedAction === "APPROVE_WITH_BRIDGE"
+              ? "Describe the bridge requirements the student must fulfill..."
               : "Add a comment about your decision..."
           }
           value={comment}

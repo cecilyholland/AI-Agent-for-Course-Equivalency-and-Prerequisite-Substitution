@@ -55,12 +55,22 @@ function buildLogs(auditLog) {
 function mapCaseDetail(data) {
   const c = data.case;
   const reviewActions = data.auditLog?.reviewActions || [];
-  const latestInfoRequest = [...reviewActions].reverse().find((a) => a.action === "request_info");
-  const latestDecision = [...reviewActions].reverse().find((a) => a.action === "approve" || a.action === "deny");
+  const latestInfoRequest = [...reviewActions].reverse().find((a) => (a.action || "").toLowerCase() === "request_info");
+  const latestDecision = [...reviewActions].reverse().find((a) => {
+    const act = (a.action || "").toLowerCase();
+    return act === "approve" || act === "deny" || act === "approve_with_bridge";
+  });
+
+  const resolveDecision = (action) => {
+    if (action === "approve") return "APPROVED";
+    if (action === "deny") return "DENIED";
+    if (action === "approve_with_bridge") return "APPROVED WITH BRIDGE";
+    return null;
+  };
 
   let displayStatus = (c.status || "").toUpperCase();
-  if (displayStatus === "REVIEWED" && latestDecision) {
-    displayStatus = latestDecision.action === "approve" ? "APPROVED" : "DENIED";
+  if ((displayStatus === "REVIEWED" || displayStatus === "COMMITTEE_DECIDED") && latestDecision) {
+    displayStatus = resolveDecision(latestDecision.action) || displayStatus;
   }
 
   return {
@@ -159,7 +169,7 @@ export async function submitReviewerDecision(caseId, action, comment, reviewerId
   const res = await fetch(`${API_BASE}/cases/${caseId}/review`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ action, comment: comment || "No comment provided.", reviewerId }),
+    body: JSON.stringify({ action, comment: comment || "", reviewerId }),
   });
   if (!res.ok) throw new Error("Failed to submit review");
   const data = await res.json();

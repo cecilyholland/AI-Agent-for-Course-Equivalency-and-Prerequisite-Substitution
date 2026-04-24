@@ -1,3 +1,14 @@
+.reviewer-decision-badge {
+  display: inline-block;
+  padding: 4px 14px;
+  border-radius: var(--radius-sm);
+  background-color: var(--color-primary);
+  color: #ffffff;
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
 .committee-members-section {
   margin-top: 32px;
 }
