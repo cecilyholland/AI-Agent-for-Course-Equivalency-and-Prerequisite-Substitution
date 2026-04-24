@@ -92,6 +92,10 @@ os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 app = FastAPI(title="Course Equivalency Backend")
 
+# Retention Check
+from app.security.retention import run_retention_sweep
+run_retention_sweep()
+
 
 def get_db() -> Session:
     db = SessionLocal()
@@ -796,6 +800,11 @@ def submit_review(
                 request_id=case_uuid,
                 reviewer_id=member.reviewer_id,
             ))
+        log_event(event="CommitteeAssigned", request_id=str(case_uuid),
+                  actor="system", step="review",
+                  extra={"assigned_by": str(body.reviewerId),
+                         "committee_members": [str(m.reviewer_id) for m in eligible],
+                         "committee_size": len(eligible)})
 
         req.status = "pending_committee"
         req.updated_at = now_utc()
@@ -966,6 +975,11 @@ def submit_committee_vote(
         created_at=now_utc(),
     ))
     db.flush()
+
+    log_event(event="CommitteeVoteCast", request_id=str(case_uuid),
+              actor="reviewer", step="committee",
+              extra={"voter_id": str(body.reviewerId), "action": body.action,
+                     "comment_preview": (body.comment[:160] + "…") if body.comment and len(body.comment) > 160 else body.comment})
 
     # Check if all committee members have voted
     total_members = (
@@ -1804,7 +1818,13 @@ def login(body: LoginIn, db: Session = Depends(get_db)):
 
     # Plain text comparison for now — security lead will replace with hashed check
     if not verify_password(body.password, r.password_hash):
+        log_event(event="LoginFailure", actor="reviewer", step="auth",
+              extra={"utc_id": body.utcId, "reason": "invalid_password"})
         raise HTTPException(status_code=401, detail="Invalid credentials")
+    
+    # success — add just before return
+    log_event(event="LoginSuccess", actor="reviewer", step="auth",
+          extra={"reviewer_id": str(r.reviewer_id), "utc_id": r.utc_id, "role": r.role or "reviewer"})
 
     return LoginOut(
         reviewerId=str(r.reviewer_id),
@@ -1897,6 +1917,12 @@ def update_policy(body: PolicyUpdateIn):
 
     _write_policy_yaml(d)
 
+    log_event(event="PolicyUpdated", actor="admin", step="admin",
+              extra={"approve_threshold": d.get("approve_threshold"),
+                     "bridge_threshold": d.get("bridge_threshold"),
+                     "require_lab_parity": d.get("require_lab_parity"),
+                     "max_course_age_years": d.get("max_course_age_years")})
+
     return PolicyOut(
         approveThreshold=d.get("approve_threshold", 90),
         bridgeThreshold=d.get("bridge_threshold", 80),
@@ -1941,6 +1967,9 @@ def create_reviewer(body: ReviewerCreateIn, db: Session = Depends(get_db)):
     db.add(r)
     db.commit()
     db.refresh(r)
+
+    log_event(event="ReviewerCreated", actor="admin", step="admin",
+          extra={"reviewer_id": str(r.reviewer_id), "utc_id": r.utc_id, "role": r.role or "reviewer"})
 
     return ReviewerOut(
         reviewerId=str(r.reviewer_id),
