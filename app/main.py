@@ -92,6 +92,10 @@ os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 app = FastAPI(title="Course Equivalency Backend")
 
+# Retention Check
+from app.security.retention import run_retention_sweep
+run_retention_sweep()
+
 
 def get_db() -> Session:
     db = SessionLocal()
