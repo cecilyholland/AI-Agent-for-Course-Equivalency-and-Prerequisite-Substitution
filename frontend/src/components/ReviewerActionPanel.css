@@ -48,6 +48,10 @@
   background-color: var(--color-approve);
 }
 
+.action-btn--bridge {
+  background-color: var(--color-bridge);
+}
+
 .action-btn--deny {
   background-color: var(--color-deny);
 }

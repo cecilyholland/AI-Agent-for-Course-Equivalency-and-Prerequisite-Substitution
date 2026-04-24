@@ -897,8 +897,15 @@ def get_committee(
     final_decision = None
     if req.status == "committee_decided":
         approve_count = sum(1 for v in votes if v.action == "approve")
+        bridge_count = sum(1 for v in votes if v.action == "approve_with_bridge")
         deny_count = sum(1 for v in votes if v.action == "deny")
-        final_decision = "approve" if approve_count > deny_count else "deny"
+        approve_total = approve_count + bridge_count
+        if bridge_count > approve_count and bridge_count > deny_count:
+            final_decision = "approve_with_bridge"
+        elif approve_total > deny_count:
+            final_decision = "approve"
+        else:
+            final_decision = "deny"
 
     return CommitteeInfoOut(
         members=members,
@@ -979,11 +986,29 @@ def submit_committee_vote(
             .all()
         )
         approve_count = sum(1 for v in all_votes if v.action == "approve")
+        bridge_count = sum(1 for v in all_votes if v.action == "approve_with_bridge")
         deny_count = sum(1 for v in all_votes if v.action == "deny")
-        final_decision = "approve" if approve_count > deny_count else "deny"
+        approve_total = approve_count + bridge_count
+        if bridge_count > approve_count and bridge_count > deny_count:
+            final_decision = "approve_with_bridge"
+        elif approve_total > deny_count:
+            final_decision = "approve"
+        else:
+            final_decision = "deny"
 
         req.status = "committee_decided"
         req.updated_at = now_utc()
+
+        db.add(
+            ReviewAction(
+                request_id=case_uuid,
+                reviewer_id=body.reviewerId,
+                action=final_decision,
+                comment=f"Committee decision: {final_decision.replace('_', ' ')}",
+                created_at=now_utc(),
+                decision_run_id=None,
+            )
+        )
 
         log_event(
             request_id=str(req.request_id),
@@ -993,6 +1018,7 @@ def submit_committee_vote(
             extra={
                 "final_decision": final_decision,
                 "approve_count": approve_count,
+                "bridge_count": bridge_count,
                 "deny_count": deny_count,
                 "total_members": total_members,
             },
@@ -1439,6 +1465,7 @@ def get_latest_decision_result(caseId: str, db: Session = Depends(get_db)):
             "approve": "APPROVE",
             "deny": "DENY",
             "request_info": "NEEDS_MORE_INFO",
+            "approve_with_bridge": "APPROVE_WITH_BRIDGE",
         }
         review_action_api = {
             "reviewActionId": str(latest_review.review_action_id),

@@ -9,6 +9,7 @@ const statusColorMap = {
   REVIEW_PENDING: "var(--color-pending)",
   REVIEWED: "var(--color-reviewed)",
   APPROVED: "var(--color-approve)",
+  "APPROVED WITH BRIDGE": "var(--color-bridge)",
   DENIED: "var(--color-deny)",
   INVALID: "var(--color-deny)",
   PENDING_COMMITTEE: "#b45309",

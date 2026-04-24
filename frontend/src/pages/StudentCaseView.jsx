@@ -58,9 +58,10 @@ export default function StudentCaseView() {
   }
 
   const reviewerDecision = decisionResult?.latestReview?.reviewerDecision;
-  const isApproved = caseData.status === "APPROVED" || (caseData.status === "REVIEWED" && reviewerDecision === "APPROVE");
-  const isDenied = caseData.status === "DENIED" || (caseData.status === "REVIEWED" && reviewerDecision === "DENY");
-  const needsMoreInfo = caseData.status === "REVIEWED" && reviewerDecision === "NEEDS_MORE_INFO";
+  const isApproved = caseData.status === "APPROVED" || (caseData.status === "REVIEWED" && reviewerDecision === "approve");
+  const isDenied = caseData.status === "DENIED" || (caseData.status === "REVIEWED" && reviewerDecision === "deny");
+  const needsMoreInfo = caseData.status === "NEEDS_INFO" || (caseData.status === "REVIEWED" && reviewerDecision === "request_info");
+  const approveWithBridge = caseData.status === "APPROVED WITH BRIDGE" || (caseData.status === "REVIEWED" && reviewerDecision === "approve_with_bridge");
 
   return (
     <div className="student-case-view">
@@ -103,6 +104,75 @@ export default function StudentCaseView() {
             <p className="student-case-view__decision-comment">
               {decisionResult.latestReview.comment}
             </p>
+          )}
+        </div>
+      )}
+
+      {approveWithBridge && !uploadedExtra && (
+        <div className="student-case-view__decision-banner student-case-view__decision-banner--needs-more-info">
+          <h3 className="student-case-view__decision-title">
+            Approved with Bridge Requirements
+          </h3>
+          <p className="student-case-view__decision-comment">
+            Your request has been conditionally approved. You must fulfill the bridge requirements below before final approval is granted.
+          </p>
+          {decisionResult?.latestReview?.comment && (
+            <p className="student-case-view__decision-comment">
+              {decisionResult.latestReview.comment}
+            </p>
+          )}
+          {!showUploadForm ? (
+            <button
+              className="student-case-view__needs-info-btn"
+              style={{ marginTop: "12px" }}
+              onClick={() => setShowUploadForm(true)}
+            >
+              Upload Supporting Documents
+            </button>
+          ) : (
+            <div className="student-case-view__upload-form">
+              <label className="student-case-view__upload-label">Select files to upload:</label>
+              {fileError && <div className="student-case-view__file-error">{fileError}</div>}
+              <input
+                ref={fileInputRef}
+                type="file"
+                multiple
+                accept=".pdf"
+                className="student-case-view__upload-input"
+                onChange={(e) => {
+                  const files = e.target.files;
+                  if (!files) return;
+                  const invalid = Array.from(files).filter((f) => !f.name.toLowerCase().endsWith(".pdf"));
+                  if (invalid.length > 0) {
+                    setFileError(`Only PDF files are allowed. Rejected: ${invalid.map((f) => f.name).join(", ")}`);
+                    e.target.value = "";
+                  } else {
+                    setFileError("");
+                  }
+                }}
+              />
+              <div className="student-case-view__upload-actions">
+                <button
+                  className="student-case-view__upload-submit"
+                  onClick={() => {
+                    const files = Array.from(fileInputRef.current.files);
+                    if (files.length === 0) return;
+                    submitAdditionalInfo(id, files).then(() => {
+                      return Promise.all([fetchCase(id), fetchDecisionResult(id)]);
+                    }).then(([updated, updatedDecision]) => {
+                      setCaseData(updated);
+                      setDecisionResult(updatedDecision);
+                      setUploadedExtra(true);
+                    });
+                  }}
+                >
+                  Upload & Submit
+                </button>
+                <button className="student-case-view__upload-cancel" onClick={() => setShowUploadForm(false)}>
+                  Cancel
+                </button>
+              </div>
+            </div>
           )}
         </div>
       )}
