@@ -174,6 +174,7 @@ def doc_to_out(d: Document) -> DocumentOut:
         storageUri=d.storage_uri,
         createdAt=d.created_at,
         isActive=d.is_active,
+        expiresAt=d.expires_at,
     )
 
 

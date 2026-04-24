@@ -80,7 +80,10 @@ CREATE TABLE documents (
   size_bytes      BIGINT,
 
   -- helpful in multi-upload cycles. If the user uploads a new PDF, old one stays in DB but is marked inactive
-  is_active       BOOLEAN NOT NULL DEFAULT TRUE
+  is_active       BOOLEAN NOT NULL DEFAULT TRUE,
+
+  -- data retention: when this document should be purged (null = no expiry)
+  expires_at      TIMESTAMPTZ
 );
 
 -- lets the database quickly find all documents that belong to a given request

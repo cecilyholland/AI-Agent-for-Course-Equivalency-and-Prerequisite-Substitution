@@ -45,6 +45,7 @@ class Document(Base):
     size_bytes = Column(Integer)
 
     is_active = Column(Boolean, nullable=False, server_default=text("TRUE"))
+    expires_at = Column(DateTime(timezone=True))
 
     request = relationship("Request", back_populates="documents")
 

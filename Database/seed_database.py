@@ -15,10 +15,11 @@ if str(REPO_ROOT) not in sys.path:
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
-from app.main import SessionLocal  # uses DATABASE_URL
+from app.main import SessionLocal, Course  # uses DATABASE_URL
 from app.extraction.seed import seed_from_student_folder
 from app.extraction.pipeline import run_extraction as run_extraction_pipeline
 from app.main import run_decision_for_case_and_run
+from app.auth import hash_password
 
 CASES = [
     ("CASE01", "Alice Johnson",  "NURS 2260"),    # General Pathology -> Pathophysiology
@@ -87,8 +88,67 @@ def assign_case_fields(
     db.commit()
 
 
+def hash_reviewer_passwords(db: Session):
+    """Replace plain-text passwords with hashed passwords for all reviewers."""
+    rows = db.execute(text("SELECT utc_id, password_hash FROM reviewers")).fetchall()
+    for utc_id, pw in rows:
+        if ":" not in (pw or ""):  # not yet hashed
+            db.execute(
+                text("UPDATE reviewers SET password_hash = :hashed WHERE utc_id = :utc_id"),
+                {"hashed": hash_password(pw or "password123"), "utc_id": utc_id},
+            )
+    db.commit()
+    print(f"Hashed passwords for {len(rows)} reviewers")
+
+
+def seed_courses_from_csv(db: Session):
+    """Load all courses from Data/Processed/ParsedData.csv into the courses table."""
+    import csv
+
+    csv_path = REPO_ROOT / "Data" / "Processed" / "ParsedData.csv"
+    if not csv_path.exists():
+        print(f"CSV not found at {csv_path}, skipping course seed")
+        return
+
+    existing_codes = {r[0] for r in db.query(Course.course_code).all()}
+    if existing_codes:
+        print(f"Courses table already has {len(existing_codes)} records, skipping CSV seed")
+        return
+
+    seen_codes = set()
+    inserted = 0
+    with open(csv_path, "r", encoding="utf-8") as f:
+        reader = csv.DictReader(f)
+        for row in reader:
+            course_code = (row.get("course_code") or "").strip()
+            if not course_code or course_code in seen_codes:
+                continue
+            seen_codes.add(course_code)
+            try:
+                credits = int(float(row.get("credits_min") or 3))
+            except (ValueError, TypeError):
+                credits = 3
+            department = (row.get("subject") or "").strip() or "General"
+            db.add(Course(
+                course_code=course_code,
+                display_name=(row.get("title") or "").strip() or course_code,
+                department=department,
+                credits=credits,
+                lab_required=False,
+                prerequisites=(row.get("prerequisites") or "").strip() or None,
+                required_topics=[],
+                required_outcomes=[],
+                description=(row.get("description") or "").strip() or None,
+            ))
+            inserted += 1
+    db.commit()
+    print(f"Seeded {inserted} courses from CSV")
+
+
 def main():
     with db_session() as db:
+        hash_reviewer_passwords(db)
+        seed_courses_from_csv(db)
         reviewer_ids = get_demo_reviewer_ids(db)
 
     for idx, (student_id, student_name, course_requested) in enumerate(CASES):

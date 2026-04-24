@@ -41,6 +41,7 @@ class DocumentOut(BaseModel):
     storageUri: str
     createdAt: datetime
     isActive: bool
+    expiresAt: Optional[datetime] = None
 
 
 class CaseDetailOut(BaseModel):
