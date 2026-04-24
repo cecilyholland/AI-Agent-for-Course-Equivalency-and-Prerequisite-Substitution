@@ -1934,7 +1934,7 @@ def create_reviewer(body: ReviewerCreateIn, db: Session = Depends(get_db)):
     r = Reviewer(
         reviewer_name=body.reviewerName,
         utc_id=body.utcId,
-        password_hash=hash_password(body.password),,
+        password_hash=hash_password(body.password),
         role=body.role,
         created_at=now_utc(),
     )

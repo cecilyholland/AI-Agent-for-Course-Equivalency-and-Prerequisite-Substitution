@@ -5,7 +5,7 @@ from uuid import UUID
 
 class ReviewIn(BaseModel):
     action: Literal["APPROVE", "DENY", "REQUEST_INFO", "NEEDS_MORE_INFO", "APPROVE_WITH_BRIDGE"]
-    comment: str = Field(min_length=1)
+    comment: str = ""
     reviewerId: UUID
 
 class ReviewerCreateIn(BaseModel):
