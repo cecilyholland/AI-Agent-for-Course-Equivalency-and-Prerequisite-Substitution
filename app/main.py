@@ -4,7 +4,7 @@ from app.auth import hash_password, verify_password
 import hashlib
 import os
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from typing import Any, Dict, List, Optional
 import json
 import yaml
@@ -550,6 +550,8 @@ def create_case(
                 "doc_count": len(files),
                 "filenames": [f.filename for f in files],
                 "assigned_reviewer_id": str(req.assigned_reviewer_id) if req.assigned_reviewer_id else None,
+                "doc_expires_at": (now_utc() + timedelta(days=90)).isoformat(),
+                "doc_retention_days": 90,
             },
         )
     except Exception:
@@ -567,6 +569,7 @@ def create_case(
                 size_bytes=meta["size_bytes"],
                 is_active=True,
                 created_at=now_utc(),
+                expires_at=now_utc() + timedelta(days=90),
             )
         )
 
@@ -695,6 +698,7 @@ def add_documents(
                 size_bytes=meta["size_bytes"],
                 is_active=True,
                 created_at=now_utc(),
+                expires_at=now_utc() + timedelta(days=90),
             )
         )
 
