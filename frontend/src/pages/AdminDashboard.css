@@ -390,6 +390,45 @@
   margin-bottom: 16px;
 }
 
+.admin-row-actions {
+  white-space: nowrap;
+  text-align: right;
+}
+
+.admin-btn-inline {
+  border: none;
+  border-radius: var(--radius-sm);
+  padding: 3px 10px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  margin-left: 6px;
+}
+
+.admin-btn-inline--edit {
+  background: var(--color-primary);
+  color: #fff;
+}
+
+.admin-btn-inline--edit:hover {
+  opacity: 0.85;
+}
+
+.admin-btn-inline--delete {
+  background: var(--color-deny);
+  color: #fff;
+}
+
+.admin-btn-inline--delete:hover {
+  opacity: 0.85;
+}
+
+.admin-form-actions {
+  display: flex;
+  gap: 12px;
+  margin-top: 4px;
+}
+
 @media (max-width: 768px) {
   .admin-form-grid {
     grid-template-columns: 1fr;

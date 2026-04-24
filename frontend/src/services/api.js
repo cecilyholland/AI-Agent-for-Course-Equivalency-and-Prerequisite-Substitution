@@ -229,6 +229,16 @@ export async function deleteCourse(courseId) {
   if (!res.ok) throw new Error("Failed to delete course");
 }
 
+export async function updateCourse(courseId, { displayName, department, credits, labRequired, prerequisites, requiredTopics, requiredOutcomes, description }) {
+  const res = await fetch(`${API_BASE}/courses/${courseId}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ displayName, department, credits, labRequired, prerequisites, requiredTopics, requiredOutcomes, description }),
+  });
+  if (!res.ok) throw new Error("Failed to update course");
+  return res.json();
+}
+
 // --- admin: policy ---
 // All fields are camelCase matching PolicyOut / PolicyUpdateIn
 

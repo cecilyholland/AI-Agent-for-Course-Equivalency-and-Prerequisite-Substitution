@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { fetchCourses, addCourse, fetchPolicy, updatePolicy } from "../services/api";
+import { fetchCourses, addCourse, deleteCourse, updateCourse, fetchPolicy, updatePolicy } from "../services/api";
 import "./AdminDashboard.css";
 
 // ─── Pagination ──────────────────────────────────────────────────────────────
@@ -47,6 +47,8 @@ function CoursesTab() {
   const [filterCredits, setFilterCredits] = useState("");
   const [filterLab, setFilterLab] = useState("");
   const [page, setPage] = useState(1);
+  const [editingCourse, setEditingCourse] = useState(null);
+  const [editForm, setEditForm] = useState(null);
 
   const resetFilters = () => { setSearch(""); setFilterDept(""); setFilterCredits(""); setFilterLab(""); setPage(1); };
   const goPage = (p) => { setPage(p); };
@@ -71,6 +73,61 @@ function CoursesTab() {
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false));
   }, []);
+
+  const startEdit = (c) => {
+    setEditingCourse(c);
+    setEditForm({
+      displayName: c.displayName || "",
+      department: c.department || "",
+      departmentCustom: "",
+      credits: String(c.credits || ""),
+      labRequired: c.labRequired || false,
+      prerequisites: c.prerequisites || "",
+      description: c.description || "",
+      requiredTopics: (c.requiredTopics || []).join(", "),
+      requiredOutcomes: (c.requiredOutcomes || []).join(", "),
+    });
+    setShowForm(false);
+  };
+
+  const handleEdit = async (e) => {
+    e.preventDefault();
+    setSaving(true);
+    try {
+      const dept = (editForm.department === "__other__" ? editForm.departmentCustom : editForm.department).trim() || "";
+      const updated = await updateCourse(editingCourse.courseId, {
+        displayName: editForm.displayName.trim(),
+        department: dept,
+        credits: parseInt(editForm.credits, 10) || 0,
+        labRequired: editForm.labRequired,
+        prerequisites: editForm.prerequisites.trim() || null,
+        description: editForm.description.trim() || null,
+        requiredTopics: editForm.requiredTopics.split(",").map((t) => t.trim()).filter(Boolean),
+        requiredOutcomes: editForm.requiredOutcomes.split(",").map((o) => o.trim()).filter(Boolean),
+      });
+      setCourses((prev) => prev.map((c) => c.courseId === editingCourse.courseId ? updated : c));
+      setEditingCourse(null);
+      setEditForm(null);
+      setSuccessMsg(`Course ${updated.courseCode} updated.`);
+      setTimeout(() => setSuccessMsg(""), 4000);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDelete = async (c) => {
+    if (!window.confirm(`Delete course ${c.courseCode} — ${c.displayName}? This cannot be undone.`)) return;
+    try {
+      await deleteCourse(c.courseId);
+      setCourses((prev) => prev.filter((x) => x.courseId !== c.courseId));
+      setSuccessMsg(`Course ${c.courseCode} deleted.`);
+      setTimeout(() => setSuccessMsg(""), 4000);
+    } catch (err) {
+      setError(err.message);
+    }
+  };
 
   const handleAdd = async (e) => {
     e.preventDefault();
@@ -114,7 +171,79 @@ function CoursesTab() {
       {error && <p className="admin-error">{error}</p>}
       {successMsg && <p className="admin-success">{successMsg}</p>}
 
-      {!showForm && <div className="admin-filters">
+      {editingCourse && editForm && (
+        <form className="admin-form" onSubmit={handleEdit}>
+          <h3 className="admin-form-title">Edit Course — <code>{editingCourse.courseCode}</code></h3>
+          <div className="admin-form-grid">
+            <div className="admin-field">
+              <label>Display Name *</label>
+              <input required value={editForm.displayName}
+                onChange={(e) => setEditForm({ ...editForm, displayName: e.target.value })} />
+            </div>
+            <div className="admin-field">
+              <label>Credits *</label>
+              <input required type="number" min="1" max="10" value={editForm.credits}
+                onChange={(e) => setEditForm({ ...editForm, credits: e.target.value })} />
+            </div>
+            <div className="admin-field">
+              <label>Department *</label>
+              {editForm.department === "__other__" ? (
+                <input required autoFocus placeholder="Enter department name"
+                  value={editForm.departmentCustom || ""}
+                  onChange={(e) => setEditForm({ ...editForm, departmentCustom: e.target.value })}
+                  onBlur={(e) => { if (!e.target.value.trim()) setEditForm({ ...editForm, department: "", departmentCustom: "" }); }}
+                />
+              ) : (
+                <select required value={editForm.department}
+                  onChange={(e) => setEditForm({ ...editForm, department: e.target.value, departmentCustom: "" })}>
+                  <option value="">Select department...</option>
+                  {[...new Set(courses.map((c) => c.department).filter(Boolean))].sort().map((d) => (
+                    <option key={d} value={d}>{d}</option>
+                  ))}
+                  <option value="__other__">+ Add new department</option>
+                </select>
+              )}
+            </div>
+            <div className="admin-field admin-field--full">
+              <label>Prerequisites <span className="admin-hint">(optional)</span></label>
+              <input placeholder="e.g. CPSC-1110" value={editForm.prerequisites}
+                onChange={(e) => setEditForm({ ...editForm, prerequisites: e.target.value })} />
+            </div>
+            <div className="admin-field admin-field--full">
+              <label>Description <span className="admin-hint">(optional)</span></label>
+              <input placeholder="Short course description..." value={editForm.description}
+                onChange={(e) => setEditForm({ ...editForm, description: e.target.value })} />
+            </div>
+            <div className="admin-field admin-field--full">
+              <label>Required Topics <span className="admin-hint">(comma-separated)</span></label>
+              <textarea value={editForm.requiredTopics}
+                onChange={(e) => setEditForm({ ...editForm, requiredTopics: e.target.value })} />
+            </div>
+            <div className="admin-field admin-field--full">
+              <label>Required Outcomes <span className="admin-hint">(comma-separated)</span></label>
+              <textarea value={editForm.requiredOutcomes}
+                onChange={(e) => setEditForm({ ...editForm, requiredOutcomes: e.target.value })} />
+            </div>
+            <div className="admin-field admin-field--checkbox">
+              <label>
+                <input type="checkbox" checked={editForm.labRequired}
+                  onChange={(e) => setEditForm({ ...editForm, labRequired: e.target.checked })} />
+                Lab Required
+              </label>
+            </div>
+          </div>
+          <div className="admin-form-actions">
+            <button className="admin-btn admin-btn--primary" type="submit" disabled={saving}>
+              {saving ? "Saving..." : "Save Changes"}
+            </button>
+            <button className="admin-btn" type="button" onClick={() => { setEditingCourse(null); setEditForm(null); }}>
+              Cancel
+            </button>
+          </div>
+        </form>
+      )}
+
+      {!showForm && !editingCourse && <div className="admin-filters">
         <input
           className="admin-filter-input"
           type="text"
@@ -236,7 +365,7 @@ function CoursesTab() {
         </form>
       )}
 
-      {!showForm && (() => {
+      {!showForm && !editingCourse && (() => {
         const filtered = courses.filter((c) => {
           const q = search.toLowerCase();
           if (q && !(c.courseCode || "").toLowerCase().includes(q) && !(c.displayName || "").toLowerCase().includes(q)) return false;
@@ -260,6 +389,7 @@ function CoursesTab() {
                   <th>Lab</th>
                   <th>Topics</th>
                   <th>Department</th>
+                  <th></th>
                 </tr>
               </thead>
               <tbody>
@@ -274,6 +404,10 @@ function CoursesTab() {
                       {(c.requiredTopics || []).length > 3 && ` +${c.requiredTopics.length - 3} more`}
                     </td>
                     <td>{c.department || "—"}</td>
+                    <td className="admin-row-actions">
+                      <button className="admin-btn-inline admin-btn-inline--edit" onClick={() => startEdit(c)}>Edit</button>
+                      <button className="admin-btn-inline admin-btn-inline--delete" onClick={() => handleDelete(c)}>Delete</button>
+                    </td>
                   </tr>
                 ))}
               </tbody>
