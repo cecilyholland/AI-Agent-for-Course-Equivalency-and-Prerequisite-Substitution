@@ -378,8 +378,21 @@ def run_extraction(request_id: str, output_dir: str = "Data/Processed/manifests"
 
                 if scan.decision == Decision.REJECT:
                     top = [f.match for f in scan.findings[:5]]
+                    # Remove file from disk before raising
+                    try:
+                        Path(pdf_path).unlink(missing_ok=True)
+                    except Exception:
+                        pass
+                    # Remove document record from DB before raising
+                    try:
+                        conn.execute(
+                            text("DELETE FROM documents WHERE doc_id = :id"),
+                            {"id": doc_id}
+                        )
+                    except Exception:
+                        pass
                     raise RuntimeError(
-                        "Prompt injection detected"
+                        "Malicious upload detected"
                         f" doc_id={doc_id}"
                         f" filename={filename}"
                         f" score={scan.total_score}"
