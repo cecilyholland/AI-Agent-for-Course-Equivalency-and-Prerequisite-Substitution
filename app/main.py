@@ -1,4 +1,5 @@
 from __future__ import annotations
+from app.auth import hash_password, verify_password
 
 import hashlib
 import os
@@ -1802,7 +1803,7 @@ def login(body: LoginIn, db: Session = Depends(get_db)):
         raise HTTPException(status_code=401, detail="Account has expired")
 
     # Plain text comparison for now — security lead will replace with hashed check
-    if r.password_hash != body.password:
+    if not verify_password(body.password, r.password_hash):
         raise HTTPException(status_code=401, detail="Invalid credentials")
 
     return LoginOut(
@@ -1933,7 +1934,7 @@ def create_reviewer(body: ReviewerCreateIn, db: Session = Depends(get_db)):
     r = Reviewer(
         reviewer_name=body.reviewerName,
         utc_id=body.utcId,
-        password_hash=body.password,
+        password_hash=hash_password(body.password),,
         role=body.role,
         created_at=now_utc(),
     )
