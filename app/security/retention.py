@@ -19,6 +19,9 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import List
 
+from sqlalchemy import create_engine, text
+DATABASE_URL: str = os.environ.get("DATABASE_URL", "")
+
 logger = logging.getLogger(__name__)
 
 LOG_DIR: Path = Path(__file__).resolve().parent.parent / "logs"
@@ -33,6 +36,9 @@ class RetentionSweepResult:
     log_lines_removed: int = 0
     log_files_deleted: int = 0
     log_files_scanned: int = 0
+
+    pdfs_deleted: int = 0
+    pdfs_skipped: int = 0
     errors: List[str] = field(default_factory=list)
 
 
@@ -123,6 +129,60 @@ def purge_expired_log_lines(
     return result
 
 
+def purge_expired_pdfs(dry_run: bool = False) -> tuple[int, int]:
+    if not DATABASE_URL:
+        logger.warning("DATABASE_URL not set — skipping PDF purge.")
+        return 0, 0
+    now_str = datetime.now(tz=timezone.utc).isoformat()
+    query = """
+        SELECT doc_id, storage_uri, expires_at
+        FROM documents
+        WHERE expires_at IS NOT NULL
+          AND expires_at < :now
+          AND storage_uri IS NOT NULL
+          AND storage_uri != ''
+    """
+    deleted = 0
+    skipped = 0
+    try:
+        engine = create_engine(DATABASE_URL)
+        with engine.connect() as conn:
+            rows = conn.execute(text(query), {"now": now_str}).fetchall()
+        for doc_id, storage_uri, expires_at in rows:
+            file_path = Path(storage_uri)
+            if not file_path.exists():
+                logger.warning("PDF for doc %s not found on disk: %s", doc_id, storage_uri)
+                skipped += 1
+                _null_storage_uri(engine, str(doc_id))
+                continue
+            if dry_run:
+                logger.info("[DRY RUN] Would delete PDF doc_id=%s path=%s (expired %s)", doc_id, storage_uri, expires_at)
+                deleted += 1
+                continue
+            try:
+                file_path.unlink()
+                _null_storage_uri(engine, str(doc_id))
+                logger.info("Deleted PDF doc_id=%s path=%s", doc_id, storage_uri)
+                deleted += 1
+            except OSError as exc:
+                logger.error("Failed to delete PDF doc_id=%s: %s", doc_id, exc)
+                skipped += 1
+    except Exception as exc:
+        logger.error("PDF purge query failed: %s", exc)
+    return deleted, skipped
+
+
+def _null_storage_uri(engine, doc_id: str) -> None:
+    try:
+        with engine.begin() as conn:
+            conn.execute(
+                text("UPDATE documents SET storage_uri = NULL WHERE doc_id = :id"),
+                {"id": doc_id},
+            )
+    except Exception as exc:
+        logger.error("Failed to null storage_uri for doc %s: %s", doc_id, exc)
+
+
 # ---------------------------------------------------------------------------
 # Entry point
 # ---------------------------------------------------------------------------
@@ -142,6 +202,13 @@ def run_retention_sweep(
     """
     logger.info("Starting retention sweep (dry_run=%s) on %s", dry_run, log_dir)
     result = purge_expired_log_lines(log_dir=log_dir, dry_run=dry_run)
+
+    try:
+        result.pdfs_deleted, result.pdfs_skipped = purge_expired_pdfs(dry_run=dry_run)
+    except Exception as exc:
+        msg = f"PDF purge failed: {exc}"
+        logger.error(msg)
+        result.errors.append(msg)
 
     if result.errors:
         logger.warning("Sweep finished with %d error(s).", len(result.errors))
@@ -172,6 +239,8 @@ if __name__ == "__main__":
     print(f"  Files scanned  : {result.log_files_scanned}")
     print(f"  Lines removed  : {result.log_lines_removed}")
     print(f"  Files deleted  : {result.log_files_deleted}")
+    print(f"  PDFs deleted      : {result.pdfs_deleted}")
+    print(f"  PDFs skipped      : {result.pdfs_skipped}")
     if result.errors:
         print(f"  Errors         : {len(result.errors)}")
         for e in result.errors:
