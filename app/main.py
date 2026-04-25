@@ -790,54 +790,42 @@ def submit_review(
     )
 
     # After reviewer approves or denies, assign committee and move to pending_committee
-    if action_db in ("approve", "deny", "approve_with_bridge"):
-        # Pick 3 random reviewers who are NOT the assigned reviewer
-        eligible = (
-            db.query(Reviewer)
-            .filter(Reviewer.reviewer_id != req.assigned_reviewer_id)
-            .order_by(text("RANDOM()"))
-            .limit(3)
-            .all()
-        )
+    # All reviewer actions (approve, deny, approve_with_bridge, request_info)
+    # assign committee and move to pending_committee
+    eligible = (
+        db.query(Reviewer)
+        .filter(Reviewer.reviewer_id != req.assigned_reviewer_id)
+        .order_by(text("RANDOM()"))
+        .limit(3)
+        .all()
+    )
 
-        for member in eligible:
-            db.add(CommitteeAssignment(
-                request_id=case_uuid,
-                reviewer_id=member.reviewer_id,
-            ))
-        log_event(event="CommitteeAssigned", request_id=str(case_uuid),
-                  actor="system", step="review",
-                  extra={"assigned_by": str(body.reviewerId),
-                         "committee_members": [str(m.reviewer_id) for m in eligible],
-                         "committee_size": len(eligible)})
+    for member in eligible:
+        db.add(CommitteeAssignment(
+            request_id=case_uuid,
+            reviewer_id=member.reviewer_id,
+        ))
+    log_event(event="CommitteeAssigned", request_id=str(case_uuid),
+              actor="system", step="review",
+              extra={"assigned_by": str(body.reviewerId),
+                     "committee_members": [str(m.reviewer_id) for m in eligible],
+                     "committee_size": len(eligible)})
 
-        req.status = "pending_committee"
-        req.updated_at = now_utc()
+    req.status = "pending_committee"
+    req.updated_at = now_utc()
 
-        log_event(
-            request_id=str(req.request_id),
-            status=req.status,
-            actor="system",
-            event="StatusChange",
-            extra={
-                "to": "pending_committee",
-                "set_by": "review",
-                "committee_size": len(eligible),
-                "committee_members": [str(m.reviewer_id) for m in eligible],
-            },
-        )
-    else:
-        # request_info → keep at reviewed or needs_info
-        req.status = "reviewed"
-        req.updated_at = now_utc()
-
-        log_event(
-            request_id=str(req.request_id),
-            status=req.status,
-            actor="system",
-            event="StatusChange",
-            extra={"to": req.status, "set_by": "review"},
-        )
+    log_event(
+        request_id=str(req.request_id),
+        status=req.status,
+        actor="system",
+        event="StatusChange",
+        extra={
+            "to": "pending_committee",
+            "set_by": "review",
+            "committee_size": len(eligible),
+            "committee_members": [str(m.reviewer_id) for m in eligible],
+        },
+    )
 
     db.commit()
     db.refresh(req)

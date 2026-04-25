@@ -463,7 +463,7 @@ def run_extraction(request_id: str, output_dir: str = "Data/Processed/manifests"
                     if facts.get("title"):
                         target_titles.add(facts["title"])
 
-                    for key in ("course_code", "title", "credits_or_units", "description", "prerequisites"):
+                    for key in ("course_code", "title", "credits_or_units", "description", "prerequisites", "learning_outcomes"):
                         val = facts.get(key)
                         unknown = val is None
                         notes = None if val else f"Missing {key} in syllabus"

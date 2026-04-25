@@ -236,3 +236,259 @@ targets:
       - Explain interactions between natural and human systems
       - Analyze environmental data and interpret trends
       - Evaluate environmental policies and sustainability practices
+
+  # --- Additional target courses for cases 11-30 ---
+
+  CHEM-3010:
+    display_name: "Organic Chemistry I"
+    target_credits: 3
+    target_lab_required: false
+    required_topics:
+      - organic structure and bonding
+      - stereochemistry
+      - reaction mechanisms
+      - functional groups
+      - substitution and elimination reactions
+      - spectroscopy
+    required_outcomes:
+      - Draw and interpret organic molecular structures
+      - Predict products of organic reactions using mechanisms
+      - Apply spectroscopic methods to identify organic compounds
+
+  MATH-2560:
+    display_name: "Calculus III (Multivariable)"
+    target_credits: 4
+    target_lab_required: false
+    required_topics:
+      - vectors and vector-valued functions
+      - partial derivatives
+      - multiple integrals
+      - line integrals
+      - surface integrals
+      - divergence and curl
+    required_outcomes:
+      - Compute partial derivatives and gradients
+      - Evaluate double and triple integrals
+      - Apply vector calculus theorems (Green, Stokes, Divergence)
+
+  PSY-1010:
+    display_name: "General Psychology"
+    target_credits: 3
+    target_lab_required: false
+    required_topics:
+      - research methods in psychology
+      - biological bases of behavior
+      - sensation and perception
+      - learning and memory
+      - developmental psychology
+      - social psychology
+    required_outcomes:
+      - Describe major psychological theories and perspectives
+      - Apply scientific methods to understand behavior
+      - Analyze psychological phenomena across the lifespan
+
+  ART-1035:
+    display_name: "Introduction to Film"
+    target_credits: 3
+    target_lab_required: false
+    required_topics:
+      - film history
+      - cinematography
+      - narrative structure
+      - film genres
+      - film criticism
+      - visual storytelling
+    required_outcomes:
+      - Analyze films using critical and theoretical frameworks
+      - Identify key techniques in cinematography and editing
+      - Evaluate narrative and aesthetic elements in film
+
+  MGT-4550:
+    display_name: "Project Management"
+    target_credits: 3
+    target_lab_required: false
+    required_topics:
+      - project planning
+      - scheduling and resource allocation
+      - risk management
+      - project execution and control
+      - agile methodologies
+      - stakeholder management
+    required_outcomes:
+      - Develop project plans with scope, schedule, and budget
+      - Apply risk management techniques to projects
+      - Lead project teams using appropriate methodologies
+
+  PHYS-1030:
+    display_name: "General Physics I"
+    target_credits: 4
+    target_lab_required: true
+    required_topics:
+      - mechanics
+      - kinematics
+      - Newton's laws
+      - energy and work
+      - momentum
+      - rotational motion
+    required_outcomes:
+      - Solve problems using Newton's laws and conservation principles
+      - Analyze motion using kinematic equations
+      - Apply energy and momentum concepts to physical systems
+
+  ECON-1010:
+    display_name: "Principles of Economics"
+    target_credits: 3
+    target_lab_required: false
+    required_topics:
+      - supply and demand
+      - market structures
+      - macroeconomic indicators
+      - fiscal and monetary policy
+      - international trade
+      - economic growth
+    required_outcomes:
+      - Analyze markets using supply and demand models
+      - Evaluate macroeconomic policies and their effects
+      - Apply economic reasoning to real-world issues
+
+  DANC-1240:
+    display_name: "Social and Ballroom Dance"
+    target_credits: 1
+    target_lab_required: false
+    required_topics:
+      - waltz
+      - foxtrot
+      - swing
+      - cha-cha
+      - social dance etiquette
+      - partner leading and following
+    required_outcomes:
+      - Perform basic steps in multiple social dance styles
+      - Demonstrate proper partner technique and timing
+      - Apply social dance etiquette in practice settings
+
+  ENGR-1020:
+    display_name: "Introduction to Engineering"
+    target_credits: 3
+    target_lab_required: false
+    required_topics:
+      - engineering design process
+      - teamwork and communication
+      - engineering ethics
+      - problem solving
+      - engineering disciplines overview
+    required_outcomes:
+      - Apply the engineering design process to solve problems
+      - Communicate technical concepts effectively
+      - Describe the roles of various engineering disciplines
+
+  PHIL-1110:
+    display_name: "Critical Thinking"
+    target_credits: 3
+    target_lab_required: false
+    required_topics:
+      - logical reasoning
+      - argument analysis
+      - informal fallacies
+      - deductive and inductive reasoning
+      - critical evaluation of sources
+    required_outcomes:
+      - Identify and evaluate arguments in everyday discourse
+      - Recognize common logical fallacies
+      - Construct well-reasoned arguments
+
+  BIOL-1110:
+    display_name: "General Biology I"
+    target_credits: 4
+    target_lab_required: true
+    required_topics:
+      - cell biology
+      - genetics
+      - molecular biology
+      - evolution
+      - ecology
+      - biodiversity
+    required_outcomes:
+      - Explain cellular structure and function
+      - Describe mechanisms of inheritance and gene expression
+      - Apply evolutionary principles to biological diversity
+
+  ENCH-3030:
+    display_name: "Chemical Engineering Thermodynamics"
+    target_credits: 3
+    target_lab_required: false
+    required_topics:
+      - first and second laws of thermodynamics
+      - PVT behavior of fluids
+      - thermodynamic properties
+      - phase equilibria
+      - chemical reaction equilibria
+      - energy balances
+    required_outcomes:
+      - Apply thermodynamic laws to engineering processes
+      - Calculate thermodynamic properties of pure substances and mixtures
+      - Analyze phase and chemical equilibria in industrial systems
+
+  # --- Lab variants (same topics as base course, lab required → NEEDS_MORE_INFO) ---
+
+  PSY-1010L:
+    display_name: "General Psychology with Lab"
+    target_credits: 4
+    target_lab_required: true
+    required_topics:
+      - research methods in psychology
+      - biological bases of behavior
+      - sensation and perception
+      - learning and memory
+      - developmental psychology
+      - social psychology
+    required_outcomes:
+      - Describe major psychological theories and perspectives
+      - Apply scientific methods to understand behavior
+      - Analyze psychological phenomena across the lifespan
+
+  MATH-2100L:
+    display_name: "Introductory Statistics with Lab"
+    target_credits: 4
+    target_lab_required: true
+    required_topics:
+      - descriptive statistics
+      - probability
+      - sampling distributions
+      - hypothesis testing
+      - regression
+      - confidence intervals
+    required_outcomes:
+      - Summarize and visualize data using statistical methods
+      - Perform hypothesis tests and interpret results
+      - Apply regression analysis to real-world data
+
+  ART-1035L:
+    display_name: "Introduction to Film with Lab"
+    target_credits: 4
+    target_lab_required: true
+    required_topics:
+      - film history
+      - cinematography
+      - film theory
+      - film criticism
+      - editing and sound design
+    required_outcomes:
+      - Analyze films using critical and theoretical frameworks
+      - Trace the historical development of cinema
+      - Construct written arguments about film as art and cultural artifact
+
+  CPSC-1110L:
+    display_name: "Programming I with Lab"
+    target_credits: 4
+    target_lab_required: true
+    required_topics:
+      - variables
+      - control flow
+      - functions
+      - arrays
+      - basic algorithms
+    required_outcomes:
+      - Write programs using fundamental programming constructs
+      - Decompose problems into functions
+      - Trace and debug simple programs
