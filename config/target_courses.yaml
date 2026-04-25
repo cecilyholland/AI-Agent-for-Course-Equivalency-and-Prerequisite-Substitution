@@ -428,3 +428,67 @@ targets:
       - Apply thermodynamic laws to engineering processes
       - Calculate thermodynamic properties of pure substances and mixtures
       - Analyze phase and chemical equilibria in industrial systems
+
+  # --- Lab variants (same topics as base course, lab required → NEEDS_MORE_INFO) ---
+
+  PSY-1010L:
+    display_name: "General Psychology with Lab"
+    target_credits: 4
+    target_lab_required: true
+    required_topics:
+      - research methods in psychology
+      - biological bases of behavior
+      - sensation and perception
+      - learning and memory
+      - developmental psychology
+      - social psychology
+    required_outcomes:
+      - Describe major psychological theories and perspectives
+      - Apply scientific methods to understand behavior
+      - Analyze psychological phenomena across the lifespan
+
+  MATH-2100L:
+    display_name: "Introductory Statistics with Lab"
+    target_credits: 4
+    target_lab_required: true
+    required_topics:
+      - descriptive statistics
+      - probability
+      - sampling distributions
+      - hypothesis testing
+      - regression
+      - confidence intervals
+    required_outcomes:
+      - Summarize and visualize data using statistical methods
+      - Perform hypothesis tests and interpret results
+      - Apply regression analysis to real-world data
+
+  ART-1035L:
+    display_name: "Introduction to Film with Lab"
+    target_credits: 4
+    target_lab_required: true
+    required_topics:
+      - film history
+      - cinematography
+      - film theory
+      - film criticism
+      - editing and sound design
+    required_outcomes:
+      - Analyze films using critical and theoretical frameworks
+      - Trace the historical development of cinema
+      - Construct written arguments about film as art and cultural artifact
+
+  CPSC-1110L:
+    display_name: "Programming I with Lab"
+    target_credits: 4
+    target_lab_required: true
+    required_topics:
+      - variables
+      - control flow
+      - functions
+      - arrays
+      - basic algorithms
+    required_outcomes:
+      - Write programs using fundamental programming constructs
+      - Decompose problems into functions
+      - Trace and debug simple programs

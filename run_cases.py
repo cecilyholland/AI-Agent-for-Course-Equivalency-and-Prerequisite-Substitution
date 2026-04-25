@@ -46,22 +46,22 @@ CASES = [
     ("CASE11", "Sofia Reyes",       "CPSC 2150"),   
     ("CASE12", "Wei Huang",         "CHEM 3010"),   
     ("CASE13", "Yuki Nakamura",     "MATH 2560"),   
-    ("CASE14", "Kwame Osei-Bonsu",  "PSY 1010"),    
-    ("CASE15", "Chioma Okonkwo",    "ART 1035"),    
+    ("CASE14", "Kwame Osei-Bonsu",  "PSY 1010L"),   # Intro Psych → General Psych w/ Lab (same topics, lab penalty)
+    ("CASE15", "Chioma Okonkwo",    "ART 1035L"),   # Film Studies → Intro Film w/ Lab (lab penalty)
     ("CASE16", "Min-Jun Kim",       "COMM 2310"),  
     ("CASE17", "Arun Patel",        "MGT 4550"),   
     ("CASE18", "Luis Garcia",       "PHYS 1030"),  
     ("CASE19", "Marcus Watkins",    "CPSC 2310"),   
     ("CASE20", "Lily Chen",         "ECON 1010"),   
     ("CASE21", "Jordan Morgan",     "DANC 1240"),  
-    ("CASE22", "Priya Patel",       "MATH 2100"),   
+    ("CASE22", "Priya Patel",       "MATH 2100L"),  # Elem Statistics → Intro Stats w/ Lab (same topics, lab penalty)
     ("CASE23", "Nia Johnson",       "NURS 2260"),  
     ("CASE24", "Tyler Brooks",      "ENGR 1020"),   
     ("CASE25", "Denise Washington", "PHIL 1110"),  
     ("CASE26", "Raj Singh",         "BIOL 1110"),  
     ("CASE27", "Maria Rivera",      "MATH 2100"),  
     ("CASE28", "David Chen",        "CPSC 2310"),   
-    ("CASE29", "Ana Torres",        "CPSC 1110"),   
+    ("CASE29", "Ana Torres",        "CPSC 1110"),   # Survey CS → Programming I
     ("CASE30", "Chris Williams",    "ENCH 3030"),   
 ]
 

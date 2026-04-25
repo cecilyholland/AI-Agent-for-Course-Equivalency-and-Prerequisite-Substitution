@@ -208,10 +208,20 @@ def call_llm_decision(
 
     # Compute score cap based on unknown evidence fields
     # Credits unknown = lose 20 pts (credit parity can't be confirmed)
+    # Lab required but unknown/missing = lose 10 pts (lab parity can't be confirmed)
     score_cap = 100
     for ev in evidence_rows:
         if ev.fact_key == "credits_or_units" and ev.unknown:
             score_cap -= 20
+
+    if packet.target_course.target_lab_required:
+        lab_confirmed = False
+        for ev in evidence_rows:
+            if ev.fact_key in ("lab_component", "contact_hours_lab") and not ev.unknown:
+                lab_confirmed = True
+                break
+        if not lab_confirmed:
+            score_cap -= 10
 
     # Deterministic evidence-quality fallback — structural, not LLM-judged.
     # Per field: 0 if unknown, 70 if known no citation, 100 if known with citation.
