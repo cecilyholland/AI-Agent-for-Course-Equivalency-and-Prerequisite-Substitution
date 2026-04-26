@@ -106,6 +106,33 @@ def _format_target_for_prompt(packet: DecisionInputsPacket) -> str:
         f"  Require credits known: {policy.require_credits_known}",
         f"  Require topics or outcomes: {policy.require_topics_or_outcomes}",
     ]
+
+    # Configurable veto rules — include only when enabled, so the LLM is
+    # not distracted by defaults. When enabled, these act as HARD vetoes
+    # per the scoring rubric in prompts/policy.md.
+    configurable_rules: list[str] = []
+    if policy.min_grade:
+        configurable_rules.append(
+            f"  min_grade: {policy.min_grade} — source grade must be >= this letter; below => HARD gap (DENY)"
+        )
+    if policy.min_contact_hours and policy.min_contact_hours > 0:
+        configurable_rules.append(
+            f"  min_contact_hours: {policy.min_contact_hours} — total lecture + lab hours must meet this floor; below => HARD gap"
+        )
+    if policy.max_course_age_years and policy.max_course_age_years > 0:
+        configurable_rules.append(
+            f"  max_course_age_years: {policy.max_course_age_years} — source term must be within this many years of today; older => HARD gap (course too old)"
+        )
+    if policy.must_include_topics:
+        configurable_rules.append(
+            f"  must_include_topics: {policy.must_include_topics} — every listed topic must appear in source topics; any missing => HARD gap"
+        )
+
+    if configurable_rules:
+        lines.append("")
+        lines.append("Configurable Veto Rules (enabled):")
+        lines.extend(configurable_rules)
+
     return "\n".join(lines)
 
 
@@ -181,22 +208,88 @@ def call_llm_decision(
 
     # Compute score cap based on unknown evidence fields
     # Credits unknown = lose 20 pts (credit parity can't be confirmed)
+    # Lab required but unknown/missing = lose 10 pts (lab parity can't be confirmed)
     score_cap = 100
     for ev in evidence_rows:
         if ev.fact_key == "credits_or_units" and ev.unknown:
             score_cap -= 20
 
-    return _parse_llm_response(data, score_cap=score_cap)
+    if packet.target_course.target_lab_required:
+        lab_confirmed = False
+        for ev in evidence_rows:
+            if ev.fact_key in ("lab_component", "contact_hours_lab") and not ev.unknown:
+                lab_confirmed = True
+                break
+        if not lab_confirmed:
+            score_cap -= 10
+
+    # Deterministic evidence-quality fallback — structural, not LLM-judged.
+    # Per field: 0 if unknown, 70 if known no citation, 100 if known with citation.
+    # Averaged across the evidence fact_keys actually produced by the extraction
+    # pipeline (course_code/title/description drive the LLM's inference when
+    # explicit topics/outcomes lists are not extracted).
+    policy = packet.policy
+    evidence_keys = {
+        "course_code", "title", "description",
+        "credits_or_units",
+        "contact_hours_lecture", "contact_hours_lab", "lab_component",
+        "topics", "outcomes", "assessments",
+        "prerequisites",
+    }
+    if policy.min_grade:
+        evidence_keys.add("grade")
+    if policy.max_course_age_years and policy.max_course_age_years > 0:
+        evidence_keys.add("term_taken")
+
+    scores: list[int] = []
+    for ev in evidence_rows:
+        if ev.fact_key not in evidence_keys:
+            continue
+        if ev.unknown or (ev.fact_value in (None, "") and not ev.fact_json):
+            scores.append(0)
+            continue
+        has_citation = bool(chunks_by_evidence.get(str(ev.evidence_id)))
+        scores.append(100 if has_citation else 70)
+
+    fallback_eq = int(sum(scores) / max(1, len(scores))) if scores else 0
+
+    return _parse_llm_response(
+        data, score_cap=score_cap, fallback_evidence_quality=fallback_eq,
+        approve_threshold=policy.approve_threshold,
+        bridge_threshold=policy.bridge_threshold,
+        needs_info_threshold=policy.needs_info_threshold,
+    )
 
 
-def _parse_llm_response(data: dict, score_cap: int = 100) -> DecisionResult:
-    """Parse the JSON response from GPT into a DecisionResult."""
+def _parse_llm_response(
+    data: dict,
+    score_cap: int = 100,
+    fallback_evidence_quality: int = 0,
+    approve_threshold: int = 90,
+    bridge_threshold: int = 80,
+    needs_info_threshold: int = 70,
+) -> DecisionResult:
+    """Parse the JSON response from GPT into a DecisionResult.
+
+    fallback_evidence_quality is used when the LLM omits the evidence_quality_score
+    field (or returns 0), since evidence quality is a structural property of the
+    source evidence rather than something the LLM should be judging.
+    """
     decision = Decision(data["decision"])
     confidence = Confidence(data.get("confidence", "MEDIUM"))
     score = int(data.get("equivalency_score", 0))
 
     # Cap score based on unknown evidence fields
     score = min(score, score_cap)
+
+    # evidence_quality_score: prefer deterministic computation from the evidence
+    # rows (passed in as fallback) over the LLM's self-report.
+    try:
+        llm_eq = int(data.get("evidence_quality_score") or 0)
+    except (TypeError, ValueError):
+        llm_eq = 0
+    evidence_quality = fallback_evidence_quality if fallback_evidence_quality > 0 else llm_eq
+    evidence_quality = max(0, min(100, evidence_quality))
 
     def _safe_citation(c):
         if isinstance(c, dict):
@@ -229,11 +322,11 @@ def _parse_llm_response(data: dict, score_cap: int = 100) -> DecisionResult:
 
     # Override the LLM's decision with score-based bands to ensure consistency
     score = max(0, min(100, score))
-    if score >= 90:
+    if score >= approve_threshold:
         decision = Decision.APPROVE
-    elif score >= 80:
+    elif score >= bridge_threshold:
         decision = Decision.APPROVE_WITH_BRIDGE
-    elif score >= 70:
+    elif score >= needs_info_threshold:
         decision = Decision.NEEDS_MORE_INFO
     else:
         decision = Decision.DENY
@@ -242,6 +335,7 @@ def _parse_llm_response(data: dict, score_cap: int = 100) -> DecisionResult:
         decision=decision,
         equivalency_score=score,
         confidence=confidence,
+        evidence_quality_score=evidence_quality,
         reasons=reasons,
         gaps=gaps,
         bridge_plan=bridge_plan,

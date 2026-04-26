@@ -6,6 +6,7 @@ const statusColorMap = {
   READY_FOR_DECISION: "var(--color-ready)",
   AI_RECOMMENDATION: "var(--color-decided)",
   NEEDS_INFO: "var(--color-needs-info)",
+  "NEEDS MORE INFO": "var(--color-needs-info)",
   REVIEW_PENDING: "var(--color-pending)",
   REVIEWED: "var(--color-reviewed)",
   APPROVED: "var(--color-approve)",

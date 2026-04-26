@@ -30,6 +30,7 @@ CREATE TABLE requests (
   created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   assigned_reviewer_id UUID,
+  review_cycle    INTEGER NOT NULL DEFAULT 1,
 
  status          TEXT NOT NULL CHECK (status IN (
                     'uploaded',
@@ -80,7 +81,10 @@ CREATE TABLE documents (
   size_bytes      BIGINT,
 
   -- helpful in multi-upload cycles. If the user uploads a new PDF, old one stays in DB but is marked inactive
-  is_active       BOOLEAN NOT NULL DEFAULT TRUE
+  is_active       BOOLEAN NOT NULL DEFAULT TRUE,
+
+  -- data retention: when this document should be purged (null = no expiry)
+  expires_at      TIMESTAMPTZ
 );
 
 -- lets the database quickly find all documents that belong to a given request
@@ -280,8 +284,9 @@ CREATE INDEX idx_requests_assigned_reviewer_id ON requests(assigned_reviewer_id)
 CREATE TABLE case_committee (
   request_id        UUID NOT NULL REFERENCES requests(request_id) ON DELETE CASCADE,
   reviewer_id       UUID NOT NULL REFERENCES reviewers(reviewer_id) ON DELETE CASCADE,
+  review_cycle      INTEGER NOT NULL DEFAULT 1,
   assigned_at       TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  PRIMARY KEY (request_id, reviewer_id)
+  PRIMARY KEY (request_id, reviewer_id, review_cycle)
 );
 
 CREATE INDEX idx_case_committee_request_id ON case_committee(request_id);
@@ -293,6 +298,7 @@ CREATE INDEX idx_case_committee_request_id ON case_committee(request_id);
 CREATE TABLE committee_votes (
   vote_id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   request_id        UUID NOT NULL REFERENCES requests(request_id) ON DELETE CASCADE,
+  review_cycle      INTEGER NOT NULL DEFAULT 1,
 
   created_at        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 
@@ -302,13 +308,13 @@ CREATE TABLE committee_votes (
   comment           TEXT NOT NULL DEFAULT '',
 
   -- must be an assigned committee member
-  FOREIGN KEY (request_id, voter_id) REFERENCES case_committee(request_id, reviewer_id)
+  FOREIGN KEY (request_id, voter_id, review_cycle) REFERENCES case_committee(request_id, reviewer_id, review_cycle)
 );
 
 -- find all committee votes for a specific request
 CREATE INDEX idx_committee_votes_request_id ON committee_votes(request_id);
--- prevent the same person from voting twice on the same case
-CREATE UNIQUE INDEX idx_committee_votes_unique_voter ON committee_votes(request_id, voter_id);
+-- prevent the same person from voting twice on the same case in the same review cycle
+CREATE UNIQUE INDEX idx_committee_votes_unique_voter ON committee_votes(request_id, voter_id, review_cycle);
 
 
 -- tighten review_actions reviewer_id from TEXT -> UUID and require it

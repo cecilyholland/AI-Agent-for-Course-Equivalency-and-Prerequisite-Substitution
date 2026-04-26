@@ -30,6 +30,8 @@ class CaseOut(BaseModel):
     assignedReviewerId: str | None = None
     courseRequested: Optional[str]
     status: str
+    reviewCycle: int = 1
+    committeeDecision: Optional[str] = None
     createdAt: datetime
     updatedAt: datetime
 
@@ -41,6 +43,7 @@ class DocumentOut(BaseModel):
     storageUri: str
     createdAt: datetime
     isActive: bool
+    expiresAt: Optional[datetime] = None
 
 
 class CaseDetailOut(BaseModel):

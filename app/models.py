@@ -23,6 +23,7 @@ class Request(Base):
     updated_at = Column(DateTime(timezone=True), nullable=False, server_default=text("NOW()"))
 
     status = Column(Text, nullable=False)
+    review_cycle = Column(Integer, nullable=False, server_default=text("1"))
 
     assigned_reviewer_id = Column(UUID(as_uuid=True), ForeignKey("reviewers.reviewer_id", ondelete="SET NULL"))
 
@@ -45,6 +46,7 @@ class Document(Base):
     size_bytes = Column(Integer)
 
     is_active = Column(Boolean, nullable=False, server_default=text("TRUE"))
+    expires_at = Column(DateTime(timezone=True))
 
     request = relationship("Request", back_populates="documents")
 
@@ -150,6 +152,7 @@ class CommitteeAssignment(Base):
 
     request_id = Column(UUID(as_uuid=True), ForeignKey("requests.request_id", ondelete="CASCADE"), primary_key=True)
     reviewer_id = Column(UUID(as_uuid=True), ForeignKey("reviewers.reviewer_id", ondelete="CASCADE"), primary_key=True)
+    review_cycle = Column(Integer, nullable=False, server_default=text("1"), primary_key=True)
     assigned_at = Column(DateTime(timezone=True), nullable=False, server_default=text("NOW()"))
 
 
@@ -158,12 +161,12 @@ class CommitteeVote(Base):
 
     vote_id = Column(UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()"))
     request_id = Column(UUID(as_uuid=True), ForeignKey("requests.request_id", ondelete="CASCADE"), nullable=False)
+    review_cycle = Column(Integer, nullable=False, server_default=text("1"))
     created_at = Column(DateTime(timezone=True), nullable=False, server_default=text("NOW()"))
     voter_id = Column(UUID(as_uuid=True), ForeignKey("reviewers.reviewer_id", ondelete="RESTRICT"), nullable=False)
     action = Column(Text, nullable=False)
     comment = Column(Text, nullable=False, server_default=text("''"))
     __table_args__ = (
-        # Prevent duplicate votes from same reviewer on same case
         {"implicit_returning": True},
     )
 

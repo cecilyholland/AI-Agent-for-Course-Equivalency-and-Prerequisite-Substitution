@@ -90,7 +90,7 @@ def extract_syllabus_facts(pages_text: list[str]) -> Dict[str, Optional[str]]:
     # Description section
     desc = None
     dm = re.search(
-        r"(Course Description|About This Course|Course Objective and Description)\s*(.+)",
+        r"(Course Description|Course Overview|About This Course|Course Objective and Description)\s*(.+)",
         text_all,
         re.IGNORECASE | re.DOTALL,
     )

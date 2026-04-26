@@ -4,7 +4,7 @@ from app.auth import hash_password, verify_password
 import hashlib
 import os
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from typing import Any, Dict, List, Optional
 import json
 import yaml
@@ -92,6 +92,10 @@ os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 app = FastAPI(title="Course Equivalency Backend")
 
+# Retention Check
+from app.security.retention import run_retention_sweep
+run_retention_sweep()
+
 
 def get_db() -> Session:
     db = SessionLocal()
@@ -149,7 +153,34 @@ def save_upload(file: UploadFile) -> Dict[str, Any]:
     }
 
 
-def case_to_out(r: Request) -> CaseOut:
+def _compute_committee_decision(db: Session, request_id, review_cycle: int) -> Optional[str]:
+    """Compute the committee majority decision for the current review cycle."""
+    votes = (
+        db.query(CommitteeVote)
+        .filter(
+            CommitteeVote.request_id == request_id,
+            CommitteeVote.review_cycle == review_cycle,
+        )
+        .all()
+    )
+    if not votes:
+        return None
+    tally: dict = {}
+    for v in votes:
+        tally[v.action] = tally.get(v.action, 0) + 1
+    max_count = max(tally.values())
+    winners = [a for a, c in tally.items() if c == max_count]
+    priority = ["deny", "needs_more_info", "approve_with_bridge", "approve"]
+    for p in priority:
+        if p in winners:
+            return p
+    return winners[0]
+
+
+def case_to_out(r: Request, db: Session = None) -> CaseOut:
+    committee_decision = None
+    if r.status == "committee_decided" and db:
+        committee_decision = _compute_committee_decision(db, r.request_id, r.review_cycle or 1)
     return CaseOut(
         caseId=str(r.request_id),
         studentId=r.student_id,
@@ -157,6 +188,8 @@ def case_to_out(r: Request) -> CaseOut:
         assignedReviewerId=str(r.assigned_reviewer_id) if r.assigned_reviewer_id else None,
         courseRequested=r.course_requested,
         status=to_frontend_status(r.status),
+        reviewCycle=r.review_cycle or 1,
+        committeeDecision=committee_decision,
         createdAt=r.created_at,
         updatedAt=r.updated_at,
     )
@@ -170,6 +203,7 @@ def doc_to_out(d: Document) -> DocumentOut:
         storageUri=d.storage_uri,
         createdAt=d.created_at,
         isActive=d.is_active,
+        expiresAt=d.expires_at,
     )
 
 
@@ -285,6 +319,7 @@ def build_audit_log(db: Session, request_id: str) -> Dict[str, Any]:
                 "action": v.action,
                 "comment": v.comment,
                 "createdAt": v.created_at,
+                "reviewCycle": v.review_cycle,
             }
             for v in committee_votes
         ],
@@ -545,6 +580,8 @@ def create_case(
                 "doc_count": len(files),
                 "filenames": [f.filename for f in files],
                 "assigned_reviewer_id": str(req.assigned_reviewer_id) if req.assigned_reviewer_id else None,
+                "doc_expires_at": (now_utc() + timedelta(days=90)).isoformat(),
+                "doc_retention_days": 90,
             },
         )
     except Exception:
@@ -562,6 +599,7 @@ def create_case(
                 size_bytes=meta["size_bytes"],
                 is_active=True,
                 created_at=now_utc(),
+                expires_at=now_utc() + timedelta(days=90),
             )
         )
 
@@ -587,7 +625,7 @@ def create_case(
     db.commit()
     db.refresh(req)
     background_tasks.add_task(run_extraction_and_decision, str(req.request_id))
-    return case_to_out(req)
+    return case_to_out(req, db)
 
 
 @app.get("/api/cases/{caseId}", response_model=CaseDetailOut)
@@ -648,7 +686,7 @@ def get_case(caseId: str, db: Session = Depends(get_db)):
             }
 
     return CaseDetailOut(
-        case=case_to_out(req),
+        case=case_to_out(req, db),
         documents=[doc_to_out(d) for d in docs],
         evidencePacket=evidence_packet,
         decisionResult=decision_result_obj,
@@ -690,6 +728,7 @@ def add_documents(
                 size_bytes=meta["size_bytes"],
                 is_active=True,
                 created_at=now_utc(),
+                expires_at=now_utc() + timedelta(days=90),
             )
         )
 
@@ -712,7 +751,7 @@ def add_documents(
     db.commit()
     db.refresh(req)
     background_tasks.add_task(run_extraction_and_decision, str(req.request_id))
-    return case_to_out(req)
+    return case_to_out(req, db)
 
 # links review to latest decision_run_id (if present)
 @app.post("/api/cases/{caseId}/review", response_model=CaseOut)
@@ -781,53 +820,57 @@ def submit_review(
     )
 
     # After reviewer approves or denies, assign committee and move to pending_committee
-    if action_db in ("approve", "deny", "approve_with_bridge"):
-        # Pick 3 random reviewers who are NOT the assigned reviewer
-        eligible = (
-            db.query(Reviewer)
-            .filter(Reviewer.reviewer_id != req.assigned_reviewer_id)
-            .order_by(text("RANDOM()"))
-            .limit(3)
-            .all()
-        )
+    # All reviewer actions (approve, deny, approve_with_bridge, request_info)
+    # assign committee and move to pending_committee
 
-        for member in eligible:
-            db.add(CommitteeAssignment(
-                request_id=case_uuid,
-                reviewer_id=member.reviewer_id,
-            ))
+    # Increment review cycle so old committee data is preserved
+    current_cycle = req.review_cycle or 1
+    has_prior_committee = db.query(CommitteeAssignment).filter(
+        CommitteeAssignment.request_id == case_uuid
+    ).first()
+    if has_prior_committee:
+        current_cycle += 1
+    req.review_cycle = current_cycle
 
-        req.status = "pending_committee"
-        req.updated_at = now_utc()
+    eligible = (
+        db.query(Reviewer)
+        .filter(Reviewer.reviewer_id != req.assigned_reviewer_id)
+        .order_by(text("RANDOM()"))
+        .limit(3)
+        .all()
+    )
 
-        log_event(
-            request_id=str(req.request_id),
-            status=req.status,
-            actor="system",
-            event="StatusChange",
-            extra={
-                "to": "pending_committee",
-                "set_by": "review",
-                "committee_size": len(eligible),
-                "committee_members": [str(m.reviewer_id) for m in eligible],
-            },
-        )
-    else:
-        # request_info → keep at reviewed or needs_info
-        req.status = "reviewed"
-        req.updated_at = now_utc()
+    for member in eligible:
+        db.add(CommitteeAssignment(
+            request_id=case_uuid,
+            reviewer_id=member.reviewer_id,
+            review_cycle=req.review_cycle,
+        ))
+    log_event(event="CommitteeAssigned", request_id=str(case_uuid),
+              actor="system", step="review",
+              extra={"assigned_by": str(body.reviewerId),
+                     "committee_members": [str(m.reviewer_id) for m in eligible],
+                     "committee_size": len(eligible)})
 
-        log_event(
-            request_id=str(req.request_id),
-            status=req.status,
-            actor="system",
-            event="StatusChange",
-            extra={"to": req.status, "set_by": "review"},
-        )
+    req.status = "pending_committee"
+    req.updated_at = now_utc()
+
+    log_event(
+        request_id=str(req.request_id),
+        status=req.status,
+        actor="system",
+        event="StatusChange",
+        extra={
+            "to": "pending_committee",
+            "set_by": "review",
+            "committee_size": len(eligible),
+            "committee_members": [str(m.reviewer_id) for m in eligible],
+        },
+    )
 
     db.commit()
     db.refresh(req)
-    return case_to_out(req)
+    return case_to_out(req, db)
 
 
 @app.get("/api/cases/{caseId}/committee", response_model=CommitteeInfoOut)
@@ -846,29 +889,38 @@ def get_committee(
     if not req:
         raise HTTPException(status_code=404, detail="Case not found")
 
-    # Check if this reviewer is a committee member for this case
+    current_cycle = req.review_cycle or 1
+
+    # Check if this reviewer is a committee member for this case (current cycle)
     membership = (
         db.query(CommitteeAssignment)
         .filter(
             CommitteeAssignment.request_id == case_uuid,
             CommitteeAssignment.reviewer_id == reviewer_uuid,
+            CommitteeAssignment.review_cycle == current_cycle,
         )
         .first()
     )
     if not membership:
         raise HTTPException(status_code=403, detail="Reviewer is not a committee member for this case")
 
-    # Get all committee members
+    # Get all committee members for current cycle
     assignments = (
         db.query(CommitteeAssignment)
-        .filter(CommitteeAssignment.request_id == case_uuid)
+        .filter(
+            CommitteeAssignment.request_id == case_uuid,
+            CommitteeAssignment.review_cycle == current_cycle,
+        )
         .all()
     )
 
-    # Get all votes for this case
+    # Get all votes for this case in current cycle
     votes = (
         db.query(CommitteeVote)
-        .filter(CommitteeVote.request_id == case_uuid)
+        .filter(
+            CommitteeVote.request_id == case_uuid,
+            CommitteeVote.review_cycle == current_cycle,
+        )
         .all()
     )
     voted_ids = {v.voter_id for v in votes}
@@ -900,10 +952,13 @@ def get_committee(
         approve_count = sum(1 for v in votes if v.action == "approve")
         bridge_count = sum(1 for v in votes if v.action == "approve_with_bridge")
         deny_count = sum(1 for v in votes if v.action == "deny")
+        nmi_count = sum(1 for v in votes if v.action == "needs_more_info")
         approve_total = approve_count + bridge_count
-        if bridge_count > approve_count and bridge_count > deny_count:
+        if nmi_count > approve_total and nmi_count > deny_count:
+            final_decision = "needs_more_info"
+        elif bridge_count > approve_count and bridge_count > deny_count and bridge_count > nmi_count:
             final_decision = "approve_with_bridge"
-        elif approve_total > deny_count:
+        elif approve_total > deny_count and approve_total > nmi_count:
             final_decision = "approve"
         else:
             final_decision = "deny"
@@ -933,24 +988,28 @@ def submit_committee_vote(
     if req.status != "pending_committee":
         raise HTTPException(status_code=409, detail=f"Case is not pending committee review (status={req.status})")
 
-    # Verify voter is on the committee
+    current_cycle = req.review_cycle or 1
+
+    # Verify voter is on the committee for current cycle
     membership = (
         db.query(CommitteeAssignment)
         .filter(
             CommitteeAssignment.request_id == case_uuid,
             CommitteeAssignment.reviewer_id == body.reviewerId,
+            CommitteeAssignment.review_cycle == current_cycle,
         )
         .first()
     )
     if not membership:
         raise HTTPException(status_code=403, detail="Reviewer is not a committee member for this case")
 
-    # Check for duplicate vote
+    # Check for duplicate vote in current cycle
     existing_vote = (
         db.query(CommitteeVote)
         .filter(
             CommitteeVote.request_id == case_uuid,
             CommitteeVote.voter_id == body.reviewerId,
+            CommitteeVote.review_cycle == current_cycle,
         )
         .first()
     )
@@ -963,19 +1022,31 @@ def submit_committee_vote(
         voter_id=body.reviewerId,
         action=body.action,
         comment=body.comment,
+        review_cycle=current_cycle,
         created_at=now_utc(),
     ))
     db.flush()
 
-    # Check if all committee members have voted
+    log_event(event="CommitteeVoteCast", request_id=str(case_uuid),
+              actor="reviewer", step="committee",
+              extra={"voter_id": str(body.reviewerId), "action": body.action,
+                     "comment_preview": (body.comment[:160] + "…") if body.comment and len(body.comment) > 160 else body.comment})
+
+    # Check if all committee members have voted (current cycle only)
     total_members = (
         db.query(CommitteeAssignment)
-        .filter(CommitteeAssignment.request_id == case_uuid)
+        .filter(
+            CommitteeAssignment.request_id == case_uuid,
+            CommitteeAssignment.review_cycle == current_cycle,
+        )
         .count()
     )
     total_votes = (
         db.query(CommitteeVote)
-        .filter(CommitteeVote.request_id == case_uuid)
+        .filter(
+            CommitteeVote.request_id == case_uuid,
+            CommitteeVote.review_cycle == current_cycle,
+        )
         .count()
     )
 
@@ -983,16 +1054,22 @@ def submit_committee_vote(
         # All voted — determine majority decision
         all_votes = (
             db.query(CommitteeVote)
-            .filter(CommitteeVote.request_id == case_uuid)
+            .filter(
+                CommitteeVote.request_id == case_uuid,
+                CommitteeVote.review_cycle == current_cycle,
+            )
             .all()
         )
         approve_count = sum(1 for v in all_votes if v.action == "approve")
         bridge_count = sum(1 for v in all_votes if v.action == "approve_with_bridge")
         deny_count = sum(1 for v in all_votes if v.action == "deny")
+        nmi_count = sum(1 for v in all_votes if v.action == "needs_more_info")
         approve_total = approve_count + bridge_count
-        if bridge_count > approve_count and bridge_count > deny_count:
+        if nmi_count > approve_total and nmi_count > deny_count:
+            final_decision = "needs_more_info"
+        elif bridge_count > approve_count and bridge_count > deny_count and bridge_count > nmi_count:
             final_decision = "approve_with_bridge"
-        elif approve_total > deny_count:
+        elif approve_total > deny_count and approve_total > nmi_count:
             final_decision = "approve"
         else:
             final_decision = "deny"
@@ -1000,11 +1077,12 @@ def submit_committee_vote(
         req.status = "committee_decided"
         req.updated_at = now_utc()
 
+        review_action_value = "request_info" if final_decision == "needs_more_info" else final_decision
         db.add(
             ReviewAction(
                 request_id=case_uuid,
                 reviewer_id=body.reviewerId,
-                action=final_decision,
+                action=review_action_value,
                 comment=f"Committee decision: {final_decision.replace('_', ' ')}",
                 created_at=now_utc(),
                 decision_run_id=None,
@@ -1027,7 +1105,7 @@ def submit_committee_vote(
 
     db.commit()
     db.refresh(req)
-    return case_to_out(req)
+    return case_to_out(req, db)
 
 
 @app.get("/api/cases", response_model=list[CaseOut])
@@ -1052,12 +1130,13 @@ def list_cases(
             raise HTTPException(status_code=422, detail="Invalid committeeReviewerId")
         query = query.join(
             CommitteeAssignment,
-            CommitteeAssignment.request_id == Request.request_id,
+            (CommitteeAssignment.request_id == Request.request_id)
+            & (CommitteeAssignment.review_cycle == Request.review_cycle),
         ).filter(CommitteeAssignment.reviewer_id == committee_uuid)
 
     cases = query.order_by(Request.created_at.desc()).all()
 
-    return [case_to_out(c) for c in cases]
+    return [case_to_out(c, db) for c in cases]
 
 
 @app.post("/api/cases/{caseId}/extraction/start")
@@ -1804,7 +1883,13 @@ def login(body: LoginIn, db: Session = Depends(get_db)):
 
     # Plain text comparison for now — security lead will replace with hashed check
     if not verify_password(body.password, r.password_hash):
+        log_event(event="LoginFailure", actor="reviewer", step="auth",
+              extra={"utc_id": body.utcId, "reason": "invalid_password"})
         raise HTTPException(status_code=401, detail="Invalid credentials")
+    
+    # success — add just before return
+    log_event(event="LoginSuccess", actor="reviewer", step="auth",
+          extra={"reviewer_id": str(r.reviewer_id), "utc_id": r.utc_id, "role": r.role or "reviewer"})
 
     return LoginOut(
         reviewerId=str(r.reviewer_id),
@@ -1897,6 +1982,12 @@ def update_policy(body: PolicyUpdateIn):
 
     _write_policy_yaml(d)
 
+    log_event(event="PolicyUpdated", actor="admin", step="admin",
+              extra={"approve_threshold": d.get("approve_threshold"),
+                     "bridge_threshold": d.get("bridge_threshold"),
+                     "require_lab_parity": d.get("require_lab_parity"),
+                     "max_course_age_years": d.get("max_course_age_years")})
+
     return PolicyOut(
         approveThreshold=d.get("approve_threshold", 90),
         bridgeThreshold=d.get("bridge_threshold", 80),
@@ -1941,6 +2032,9 @@ def create_reviewer(body: ReviewerCreateIn, db: Session = Depends(get_db)):
     db.add(r)
     db.commit()
     db.refresh(r)
+
+    log_event(event="ReviewerCreated", actor="admin", step="admin",
+          extra={"reviewer_id": str(r.reviewer_id), "utc_id": r.utc_id, "role": r.role or "reviewer"})
 
     return ReviewerOut(
         reviewerId=str(r.reviewer_id),

@@ -1,10 +1,13 @@
 # app/workflow_logger.py
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 import json
+import os
 from pathlib import Path
 from typing import Any, Optional
+
+_RETENTION_DAYS: int = int(os.getenv("LOG_RETENTION_DAYS", "1825"))
 
 _LOG_PATH: Optional[Path] = None
 
@@ -20,8 +23,9 @@ def _get_log_path() -> Path:
     return _LOG_PATH
 
 def log_event(event: str, request_id: Optional[str]=None, actor: str="system", status: Optional[str] = None, step: Optional[str]=None, extra: Optional[dict[str, Any]]=None) -> None:
-    record = {"ts": datetime.now(timezone.utc).isoformat(), "event": event, "request_id": request_id, "actor": actor, "status": status, "step": step, "extra": extra or {},
+    record = {"ts": datetime.now(timezone.utc).isoformat(), "expires_at": (datetime.now(timezone.utc) + timedelta(days=_RETENTION_DAYS)).isoformat(),"event": event, "request_id": request_id, "actor": actor, "status": status, "step": step, "extra": extra or {},
               }
+    
     try:
         with _get_log_path().open("a", encoding="utf-8") as f:
             f.write(json.dumps(record, default=str) + "\n")
