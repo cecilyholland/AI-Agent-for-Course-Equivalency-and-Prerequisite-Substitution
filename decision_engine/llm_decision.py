@@ -255,10 +255,20 @@ def call_llm_decision(
 
     return _parse_llm_response(
         data, score_cap=score_cap, fallback_evidence_quality=fallback_eq,
+        approve_threshold=policy.approve_threshold,
+        bridge_threshold=policy.bridge_threshold,
+        needs_info_threshold=policy.needs_info_threshold,
     )
 
 
-def _parse_llm_response(data: dict, score_cap: int = 100, fallback_evidence_quality: int = 0) -> DecisionResult:
+def _parse_llm_response(
+    data: dict,
+    score_cap: int = 100,
+    fallback_evidence_quality: int = 0,
+    approve_threshold: int = 90,
+    bridge_threshold: int = 80,
+    needs_info_threshold: int = 70,
+) -> DecisionResult:
     """Parse the JSON response from GPT into a DecisionResult.
 
     fallback_evidence_quality is used when the LLM omits the evidence_quality_score
@@ -312,11 +322,11 @@ def _parse_llm_response(data: dict, score_cap: int = 100, fallback_evidence_qual
 
     # Override the LLM's decision with score-based bands to ensure consistency
     score = max(0, min(100, score))
-    if score >= 90:
+    if score >= approve_threshold:
         decision = Decision.APPROVE
-    elif score >= 80:
+    elif score >= bridge_threshold:
         decision = Decision.APPROVE_WITH_BRIDGE
-    elif score >= 70:
+    elif score >= needs_info_threshold:
         decision = Decision.NEEDS_MORE_INFO
     else:
         decision = Decision.DENY

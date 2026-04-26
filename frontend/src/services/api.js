@@ -2,14 +2,25 @@
 
 const API_BASE = "/api";
 
+const COMMITTEE_DECISION_MAP = {
+  approve: "APPROVED",
+  deny: "DENIED",
+  approve_with_bridge: "APPROVED WITH BRIDGE",
+  needs_more_info: "NEEDS MORE INFO",
+};
+
 function mapCaseOut(c) {
+  let status = (c.status || "").toUpperCase();
+  if (status === "COMMITTEE_DECIDED" && c.committeeDecision) {
+    status = COMMITTEE_DECISION_MAP[c.committeeDecision] || status;
+  }
   return {
     id: c.caseId,
     studentId: c.studentId,
     studentName: c.studentName,
     assignedReviewerId: c.assignedReviewerId || null,
     courseRequested: c.courseRequested,
-    status: (c.status || "").toUpperCase(),
+    status,
     createdAt: c.createdAt,
     updatedAt: c.updatedAt,
   };
@@ -58,18 +69,25 @@ function mapCaseDetail(data) {
   const latestInfoRequest = [...reviewActions].reverse().find((a) => (a.action || "").toLowerCase() === "request_info");
   const latestDecision = [...reviewActions].reverse().find((a) => {
     const act = (a.action || "").toLowerCase();
-    return act === "approve" || act === "deny" || act === "approve_with_bridge";
+    return act === "approve" || act === "deny" || act === "approve_with_bridge" || act === "request_info";
   });
 
   const resolveDecision = (action) => {
     if (action === "approve") return "APPROVED";
     if (action === "deny") return "DENIED";
     if (action === "approve_with_bridge") return "APPROVED WITH BRIDGE";
+    if (action === "request_info") return "NEEDS MORE INFO";
     return null;
   };
 
   let displayStatus = (c.status || "").toUpperCase();
-  if ((displayStatus === "REVIEWED" || displayStatus === "COMMITTEE_DECIDED") && latestDecision) {
+  if (displayStatus === "COMMITTEE_DECIDED") {
+    if (c.committeeDecision) {
+      displayStatus = COMMITTEE_DECISION_MAP[c.committeeDecision] || displayStatus;
+    } else if (latestDecision) {
+      displayStatus = resolveDecision(latestDecision.action) || displayStatus;
+    }
+  } else if (displayStatus === "REVIEWED" && latestDecision) {
     displayStatus = resolveDecision(latestDecision.action) || displayStatus;
   }
 

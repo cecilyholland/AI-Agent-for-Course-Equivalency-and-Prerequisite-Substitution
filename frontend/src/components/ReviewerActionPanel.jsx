@@ -17,7 +17,7 @@ export default function ReviewerActionPanel({
   const [comment, setComment] = useState("");
   const [confirmed, setConfirmed] = useState(false);
   const [commentError, setCommentError] = useState("");
-  const isDisabled = currentStatus === "REVIEWED" || currentStatus === "APPROVED" || currentStatus === "APPROVED WITH BRIDGE" || currentStatus === "INVALID" || currentStatus === "DENIED" || confirmed;
+  const isDisabled = currentStatus === "REVIEWED" || currentStatus === "APPROVED" || currentStatus === "APPROVED WITH BRIDGE" || currentStatus === "INVALID" || currentStatus === "DENIED" || currentStatus === "PENDING_COMMITTEE" || currentStatus === "COMMITTEE_DECIDED" || currentStatus === "NEEDS MORE INFO" || confirmed;
 
   const handleActionClick = (action) => {
     if (isDisabled) return;
