@@ -169,9 +169,30 @@ extraction error, etc.) it is logged as `SKIPPED` and the script continues.
 
 | Role | UTC ID | Password | Notes |
 |------|--------|----------|-------|
-| Admin | `rev001` | `password123` | Full admin access (manage courses + policy) |
+| Admin + Reviewer | `rev001` | `password123` | Full admin access (manage courses + policy) and reviewer access |
 | Reviewer | `rev002`–`rev006` | `password123` | Standard reviewer access |
 | Student | `CASE01`–`CASE10` | _(none)_ | Student login is by UTC ID only |
+
+### Running with Docker
+
+```bash
+docker-compose down -v    # tear down containers and volumes
+docker-compose up --build # rebuild and start all containers
+```
+
+### Viewing LLM decisions without the frontend
+
+To run the decision engine against all cases locally and print results:
+
+```bash
+python run_cases.py
+```
+
+To test the Docker seed file:
+
+```bash
+python test_docker_cases.py
+```
 
 ### Resetting the database
 
