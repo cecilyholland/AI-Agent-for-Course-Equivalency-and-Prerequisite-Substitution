@@ -210,9 +210,12 @@ def call_llm_decision(
     # Credits unknown = lose 20 pts (credit parity can't be confirmed)
     # Lab required but unknown/missing = lose 10 pts (lab parity can't be confirmed)
     score_cap = 100
-    for ev in evidence_rows:
-        if ev.fact_key == "credits_or_units" and ev.unknown:
-            score_cap -= 20
+    credits_confirmed = any(
+        ev.fact_key == "credits_or_units" and not ev.unknown
+        for ev in evidence_rows
+    )
+    if not credits_confirmed:
+        score_cap -= 20
 
     if packet.target_course.target_lab_required:
         lab_confirmed = False
