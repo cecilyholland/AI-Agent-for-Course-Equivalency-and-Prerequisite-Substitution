@@ -30,6 +30,8 @@ class CaseOut(BaseModel):
     assignedReviewerId: str | None = None
     courseRequested: Optional[str]
     status: str
+    reviewCycle: int = 1
+    committeeDecision: Optional[str] = None
     createdAt: datetime
     updatedAt: datetime
 

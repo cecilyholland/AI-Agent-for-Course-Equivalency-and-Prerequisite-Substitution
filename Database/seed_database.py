@@ -22,16 +22,38 @@ from app.main import run_decision_for_case_and_run
 from app.auth import hash_password
 
 CASES = [
-    ("CASE01", "Alice Johnson",  "NURS 2260"),    # General Pathology -> Pathophysiology
-    ("CASE02", "Brian Lee",      "BIOL 2010"),    # Anatomy & Physiology -> Anatomy & Physiology I
-    ("CASE03", "Carla Gomez",    "CHEM 4510"),    # Biochemistry -> Biochemistry
-    ("CASE04", "Daniel Kim",     "BIOL 3060"),    # Principles of Ecology -> Ecology
-    ("CASE05", "Elena Martinez", "NURS 2260"),    # Clinical Pathology -> Pathophysiology
-    ("CASE06", "Farah Ahmed",    "HHP 3450"),     # Classics in Neuroscience -> Neuroscience and Neurofeedback
-    ("CASE07", "George Patel",   "CHEM 3710"),    # CBE Thermodynamics -> Physical Chemistry: Thermo & Kinetics
-    ("CASE08", "Hannah Wright",  "COMM 2310"),    # Leadership and Communication -> Multimedia Journalism
-    ("CASE09", "Ivan Novak",     "MATH 2100"),    # Statistical Programming with R -> Introductory Statistics
-    ("CASE10", "Julia Chen",     "ESC 1500"),     # Intro Complex Environmental Systems -> Intro Environmental Science I
+    # Cases 1-10 (have structured transcripts)
+    ("CASE01", "Alice Johnson",  "NURS 2260"),
+    ("CASE02", "Brian Lee",      "BIOL 2010"),
+    ("CASE03", "Carla Gomez",    "CHEM 4510"),
+    ("CASE04", "Daniel Kim",     "BIOL 3060"),
+    ("CASE05", "Elena Martinez", "NURS 2260"),
+    ("CASE06", "Farah Ahmed",    "HHP 3450"),
+    ("CASE07", "George Patel",   "CHEM 3710"),
+    ("CASE08", "Hannah Wright",  "COMM 2310"),
+    ("CASE09", "Ivan Novak",     "MATH 2100"),
+    ("CASE10", "Julia Chen",     "ESC 1500"),
+    # Cases 11-30 (transcript PDFs only)
+    ("CASE11", "Sofia Reyes",       "CPSC 2150"),
+    ("CASE12", "Wei Huang",         "CHEM 3010"),
+    ("CASE13", "Yuki Nakamura",     "MATH 2560"),
+    ("CASE14", "Kwame Osei-Bonsu",  "PSY 1010L"),
+    ("CASE15", "Chioma Okonkwo",    "ART 1035L"),
+    ("CASE16", "Min-Jun Kim",       "COMM 2310"),
+    ("CASE17", "Arun Patel",        "MGT 4550"),
+    ("CASE18", "Luis Garcia",       "PHYS 1030"),
+    ("CASE19", "Marcus Watkins",    "CPSC 2310"),
+    ("CASE20", "Lily Chen",         "ECON 1010"),
+    ("CASE21", "Jordan Morgan",     "DANC 1240"),
+    ("CASE22", "Priya Patel",       "MATH 2100L"),
+    ("CASE23", "Nia Johnson",       "NURS 2260"),
+    ("CASE24", "Tyler Brooks",      "ENGR 1020"),
+    ("CASE25", "Denise Washington", "PHIL 1110"),
+    ("CASE26", "Raj Singh",         "BIOL 1110"),
+    ("CASE27", "Maria Rivera",      "MATH 2100"),
+    ("CASE28", "David Chen",        "CPSC 2310"),
+    ("CASE29", "Ana Torres",        "CPSC 1110"),
+    ("CASE30", "Chris Williams",    "ENCH 3030"),
 ]
 
 BASE_FOLDER = Path("Data/Raw/StudentTestCases")
@@ -145,10 +167,43 @@ def seed_courses_from_csv(db: Session):
     print(f"Seeded {inserted} courses from CSV")
 
 
+EXTRA_COURSES = [
+    ("CPSC 2150", "Data Structures",                          "CPSC", 3, False),
+    ("CPSC 2310", "Digital Logic & Computer Organization",    "CPSC", 4, True),
+    ("DANC 1240", "Social and Ballroom Dance",                "DANC", 1, False),
+    ("ENGR 1020", "Introduction to Engineering",              "ENGR", 3, False),
+    ("PSY 1010L", "General Psychology with Lab",              "PSY",  4, True),
+    ("ART 1035L", "Introduction to Film with Lab",            "ART",  4, True),
+    ("MATH 2100L","Introductory Statistics with Lab",         "MATH", 4, True),
+]
+
+
+def seed_extra_courses(db: Session):
+    """Add courses that are not in ParsedData.csv but are used by demo cases."""
+    existing = {r[0] for r in db.query(Course.course_code).all()}
+    added = 0
+    for code, name, dept, credits, lab in EXTRA_COURSES:
+        if code not in existing:
+            db.add(Course(
+                course_code=code,
+                display_name=name,
+                department=dept,
+                credits=credits,
+                lab_required=lab,
+                required_topics=[],
+                required_outcomes=[],
+            ))
+            added += 1
+    db.commit()
+    if added:
+        print(f"Seeded {added} extra courses not in CSV")
+
+
 def main():
     with db_session() as db:
         hash_reviewer_passwords(db)
         seed_courses_from_csv(db)
+        seed_extra_courses(db)
         reviewer_ids = get_demo_reviewer_ids(db)
 
     for idx, (student_id, student_name, course_requested) in enumerate(CASES):
