@@ -149,26 +149,7 @@ If your cluster uses a non-default port, add `-p <port>` to the `psql`
 command. If it requires a password, use the `PGPASSWORD` environment variable
 or a `.pgpass` file.
 
-### Step 2 — Hash the reviewer passwords
-
-The seed SQL stores `password123` in plaintext, but the FastAPI auth layer
-(`app/auth.py`) expects values produced by `hash_password()` (SHA-256 with a
-random 16-byte salt, formatted as `<hex_salt>:<hex_hash>`). Run the one-liner
-below to walk every reviewer row and replace its plaintext value with a real
-hash. It connects to the database via `DATABASE_URL` from `.env` and uses
-`app.auth.hash_password`:
-
-```bash
-python -c "import sys; sys.path.insert(0, '.'); from app.auth import hash_password; import psycopg2; conn = psycopg2.connect('postgresql://postgres:ai_db_demo@localhost:8000/ai_db_demo'); cur = conn.cursor(); cur.execute('SELECT utc_id FROM reviewers'); [cur.execute('UPDATE reviewers SET password_hash = %s WHERE utc_id = %s', (hash_password('password123'), utc_id)) for (utc_id,) in cur.fetchall()]; conn.commit(); print('Done')"
-```
-
-> Update the `psycopg2.connect(...)` URL inside the snippet to match your own
-> Postgres host / port / credentials if they differ.
-
-Expected output: `Done`. After this step, `POST /api/auth/login` will succeed
-for any of the six reviewers using the password `password123`.
-
-### Step 3 — Seed the demo cases
+### Step 2 — Seed the demo cases
 
 `Database/seed_database.py` loads ten student folders from
 `Data/Raw/StudentTestCases/CASE01`–`CASE10`, runs the extraction pipeline on
@@ -194,7 +175,7 @@ extraction error, etc.) it is logged as `SKIPPED` and the script continues.
 
 ### Resetting the database
 
-To start fresh, simply re-run all three steps. `setup_ai_db_demo.sql` begins
+To start fresh, simply re-run both steps. `setup_ai_db_demo.sql` begins
 with `DROP DATABASE IF EXISTS ai_db_demo`, so it is safe to invoke
 repeatedly.
 
@@ -204,7 +185,7 @@ repeatedly.
 |---------|-------------|
 | `psql: connection refused` | Postgres isn't running, or the host/port in `DATABASE_URL` is wrong. Check your local cluster. |
 | `Expected at least 4 demo reviewers but found 0` | Step 1 didn't run, or it connected to the wrong database. Re-run `setup_ai_db_demo.sql`. |
-| Login returns `401 Invalid credentials` | Step 2 (password hashing) was skipped. Re-run the one-liner. |
+| Login returns `401 Invalid credentials` | Wrong UTC ID or password. Demo password is `password123`. |
 | `Missing folder: Data/Raw/StudentTestCases/CASE01` | The demo data folders aren't present in your local checkout. Add them under `Data/Raw/StudentTestCases/`. |
 | Cases stuck in `ready_for_decision` (no AI recommendation) | The decision engine wasn't invoked for that case. Either re-seed, or run `python trigger_decisions.py` to backfill decisions for existing extractions. |
 
