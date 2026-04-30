@@ -43,12 +43,88 @@
   --color-text-secondary: #64748b;
   --color-text-muted: #94a3b8;
 
+  /* Semantic banner / alert colors */
+  --color-approve-bg: #f0fdf4;
+  --color-approve-text: #166534;
+  --color-deny-bg: #fef2f2;
+  --color-deny-text: #991b1b;
+  --color-needs-info-bg: #fffbeb;
+  --color-needs-info-border: #f59e0b;
+  --color-needs-info-text: #92400e;
+  --color-error-bg: #fef2f2;
+  --color-error-border: #dc2626;
+  --color-error-text: #dc2626;
+  --color-input-highlight: #FFFDE7;
+
   /* Spacing & Radius */
   --radius-sm: 4px;
   --radius: 8px;
   --radius-lg: 12px;
   --shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
   --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+}
+
+[data-theme="dark"] {
+  /* UTC Brand — keep navy feel, slightly lighter for dark bg */
+  --color-primary: #1e3a5f;
+  --color-primary-light: #2a4e7a;
+  --color-accent: #FFB81C;
+  --color-accent-hover: #E5A200;
+  --color-accent-light: #1a1200;
+
+  /* Decision colors — brighter for dark bg */
+  --color-approve: #22c55e;
+  --color-deny: #ef4444;
+  --color-needs-info: #f59e0b;
+  --color-bridge: #3b82f6;
+
+  /* Confidence colors */
+  --color-high: #22c55e;
+  --color-medium: #f59e0b;
+  --color-low: #ef4444;
+
+  /* Gap severity colors */
+  --color-hard: #ef4444;
+  --color-fixable: #f59e0b;
+  --color-info-missing: #94a3b8;
+
+  /* Status colors */
+  --color-uploaded: #94a3b8;
+  --color-extracting: #60a5fa;
+  --color-ready: #a78bfa;
+  --color-decided: #22d3ee;
+  --color-pending: #a78bfa;
+  --color-reviewed: #22c55e;
+
+  /* Actor colors */
+  --color-actor-student: #60a5fa;
+  --color-actor-agent: #a78bfa;
+  --color-actor-reviewer: #FFB81C;
+
+  /* Neutrals */
+  --color-bg: #0f172a;
+  --color-surface: #1e293b;
+  --color-border: #334155;
+  --color-text: #f1f5f9;
+  --color-text-secondary: #94a3b8;
+  --color-text-muted: #64748b;
+
+  /* Semantic banner / alert colors */
+  --color-approve-bg: #052e16;
+  --color-approve-text: #4ade80;
+  --color-deny-bg: #2d0a0a;
+  --color-deny-text: #f87171;
+  --color-needs-info-bg: #1c1000;
+  --color-needs-info-border: #d97706;
+  --color-needs-info-text: #fbbf24;
+  --color-error-bg: #2d0a0a;
+  --color-error-border: #ef4444;
+  --color-error-text: #f87171;
+  --color-input-highlight: #1a1500;
+
+  /* Stronger shadows for dark mode */
+  --shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.5);
 }
 
 *,

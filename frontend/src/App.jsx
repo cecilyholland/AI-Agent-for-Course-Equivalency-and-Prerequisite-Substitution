@@ -1,3 +1,4 @@
+import { useState, useEffect } from "react";
 import { Routes, Route, Link, Navigate, useLocation } from "react-router-dom";
 import { AuthProvider, useAuth } from "./services/auth";
 import LoginPage from "./pages/LoginPage";
@@ -27,7 +28,7 @@ function RequireAuth({ role, children }) {
   return children;
 }
 
-function NavBar() {
+function NavBar({ theme, toggleTheme }) {
   const { user, logout } = useAuth();
 
   return (
@@ -63,6 +64,15 @@ function NavBar() {
             </button>
           </>
         )}
+
+        <button
+          className="app-nav-theme-toggle"
+          onClick={toggleTheme}
+          aria-label="Toggle dark mode"
+          title={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+        >
+          {theme === "dark" ? "☀" : "☾"}
+        </button>
       </div>
     </nav>
   );
@@ -161,10 +171,21 @@ function AppRoutes() {
 }
 
 export default function App() {
+  const [theme, setTheme] = useState(
+    () => localStorage.getItem("theme") || "light"
+  );
+
+  useEffect(() => {
+    document.documentElement.setAttribute("data-theme", theme);
+    localStorage.setItem("theme", theme);
+  }, [theme]);
+
+  const toggleTheme = () => setTheme((t) => (t === "light" ? "dark" : "light"));
+
   return (
     <AuthProvider>
       <div className="app">
-        <NavBar />
+        <NavBar theme={theme} toggleTheme={toggleTheme} />
         <main className="app-main">
           <AppRoutes />
         </main>

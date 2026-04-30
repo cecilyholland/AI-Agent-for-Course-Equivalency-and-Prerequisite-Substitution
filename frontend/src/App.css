@@ -71,6 +71,23 @@
   border-color: var(--color-accent);
 }
 
+.app-nav-theme-toggle {
+  font-size: 1rem;
+  background: none;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: var(--radius-sm);
+  color: rgba(255, 255, 255, 0.75);
+  padding: 4px 10px;
+  cursor: pointer;
+  transition: all 0.15s;
+  line-height: 1.2;
+}
+
+.app-nav-theme-toggle:hover {
+  color: var(--color-accent);
+  border-color: var(--color-accent);
+}
+
 .app-main {
   max-width: 1100px;
   margin: 0 auto;
