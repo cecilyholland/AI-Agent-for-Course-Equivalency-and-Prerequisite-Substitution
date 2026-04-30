@@ -29,6 +29,12 @@
   max-width: 320px;
   width: 100%;
   height: auto;
+  transition: filter 0.2s;
+}
+
+[data-theme="dark"] .login-utc-logo {
+  /* The SVG uses dark navy for all text/shapes — invert to white for dark bg */
+  filter: brightness(0) invert(1);
 }
 
 .login-title {
@@ -97,7 +103,7 @@
   letter-spacing: 0.1em;
   border: 2px solid var(--color-primary);
   border-radius: var(--radius);
-  background: #FFFDE7;
+  background: var(--color-input-highlight);
   color: var(--color-text);
   transition: border-color 0.15s, box-shadow 0.15s;
 }

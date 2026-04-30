@@ -85,12 +85,12 @@
 }
 
 .student-case-view__decision-banner--approve {
-  background: #f0fdf4;
+  background: var(--color-approve-bg);
   border-color: var(--color-approve);
 }
 
 .student-case-view__decision-banner--deny {
-  background: #fef2f2;
+  background: var(--color-deny-bg);
   border-color: var(--color-deny);
 }
 
@@ -101,11 +101,11 @@
 }
 
 .student-case-view__decision-banner--approve .student-case-view__decision-title {
-  color: #166534;
+  color: var(--color-approve-text);
 }
 
 .student-case-view__decision-banner--deny .student-case-view__decision-title {
-  color: #991b1b;
+  color: var(--color-deny-text);
 }
 
 .student-case-view__decision-comment {
@@ -132,7 +132,7 @@
 .student-case-view__reviewer-comment {
   margin-bottom: 16px;
   padding: 14px 18px;
-  background: #fff;
+  background: var(--color-surface);
   border: 1px solid var(--color-border);
   border-radius: var(--radius);
 }
@@ -222,17 +222,17 @@
 .student-case-view__upload-form {
   margin-top: 12px;
   padding: 16px;
-  background: #fff;
+  background: var(--color-surface);
   border: 1px solid var(--color-accent);
   border-radius: var(--radius);
 }
 
 .student-case-view__file-error {
   padding: 10px 14px;
-  background: #fef2f2;
-  border: 1px solid #dc2626;
+  background: var(--color-error-bg);
+  border: 1px solid var(--color-error-border);
   border-radius: var(--radius);
-  color: #dc2626;
+  color: var(--color-error-text);
   font-size: 0.85rem;
   font-weight: 500;
   margin-bottom: 10px;
@@ -289,10 +289,10 @@
 /* upload success */
 .student-case-view__upload-success {
   padding: 16px 20px;
-  background: #f0fdf4;
+  background: var(--color-approve-bg);
   border: 1px solid var(--color-approve);
   border-radius: var(--radius);
-  color: #166534;
+  color: var(--color-approve-text);
   font-size: 0.9rem;
   font-weight: 500;
 }

@@ -2,6 +2,30 @@
 
 Universities face slow, error-prone course equivalency reviews due to fragmented evidence and nuanced criteria. This project builds a secure AI agent that turns messy documents into cited decision packets with clear reasoning, privacy safeguards, and an auditable, human-reviewed workflow.
 
+## Screenshots
+
+| Login | Student Dashboard |
+|-------|------------------|
+| ![Login](docs/screenshots/login.png) | ![Student Dashboard](docs/screenshots/student-dashboard.png) |
+
+| Student — New Request | Reviewer Dashboard |
+|-----------------------|--------------------|
+| ![New Request](docs/screenshots/student-new-request.png) | ![Reviewer Dashboard](docs/screenshots/reviewer-dashboard.png) |
+
+| Committee Cases | Committee Case Review |
+|-----------------|-----------------------|
+| ![Committee Dashboard](docs/screenshots/committee-dashboard.png) | ![Committee Review](docs/screenshots/committee-case-review.png) |
+
+| Admin — Courses | Admin — Policy |
+|-----------------|----------------|
+| ![Admin Courses](docs/screenshots/admin-courses.png) | ![Admin Policy](docs/screenshots/admin-policy.png) |
+
+| Admin — Prerequisites |
+|-----------------------|
+| ![Admin Prerequisites](docs/screenshots/admin-prerequisites.png) |
+
+---
+
 ## Table of Contents
 
 - [Architecture Overview](#architecture-overview)

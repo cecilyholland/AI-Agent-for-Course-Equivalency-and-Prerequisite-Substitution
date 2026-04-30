@@ -11,12 +11,12 @@
 }
 
 .student-case-view__decision-banner--needs-more-info {
-  background: #fffbeb;
-  border-color: #f59e0b;
+  background: var(--color-needs-info-bg);
+  border-color: var(--color-needs-info-border);
 }
 
 .student-case-view__decision-banner--needs-more-info .student-case-view__decision-title {
-  color: #92400e;
+  color: var(--color-needs-info-text);
 }
 
 .new-case__back:hover {
@@ -188,10 +188,10 @@
 
 .new-case__file-error {
   padding: 12px 16px;
-  background: #fef2f2;
-  border: 1px solid #dc2626;
+  background: var(--color-error-bg);
+  border: 1px solid var(--color-error-border);
   border-radius: var(--radius);
-  color: #dc2626;
+  color: var(--color-error-text);
   font-size: 0.9rem;
   font-weight: 500;
   margin-bottom: 16px;
@@ -225,7 +225,7 @@
 }
 
 .new-case__btn--primary:disabled {
-  background: #94a3b8;
+  background: var(--color-text-muted);
   cursor: not-allowed;
 }
 
